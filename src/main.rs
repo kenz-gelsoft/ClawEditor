@@ -8,14 +8,9 @@ fn main() {
         let frame = wx::Frame::builder(wx::Window::none())
             .title("カニツメエディタ")
             .build();
-        let button = wx::Button::builder(Some(&frame)).label("Greet").build();
-        let weak_button = button.to_weak_ref();
-        button.bind(wx::RustEvent::Button, move |_: &wx::CommandEvent| {
-            if let Some(button) = weak_button.get() {
-                button.set_label("clicked");
-                println!("s={}", button.get_label())
-            }
-        });
+        let _textbox = wx::TextCtrl::builder(Some(&frame))
+            .style(wx::TE_MULTILINE.into())
+            .build();
         frame.show(true);
     });
 }
