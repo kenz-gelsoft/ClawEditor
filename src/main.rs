@@ -28,6 +28,8 @@ impl From<Command> for c_int {
     }
 }
 
+type Frame = wx::FrameIsOwned<false>;
+
 fn main() {
     wx::App::run(|_| {
         let frame = wx::Frame::builder(wx::Window::none())
@@ -37,9 +39,11 @@ fn main() {
         let _textbox = wx::TextCtrl::builder(Some(&frame))
             .style(wx::TE_MULTILINE.into())
             .build();
-        frame.bind(wx::RustEvent::Menu, |event: &wx::CommandEvent| {
-            if let Some(command) = Command::from(event.get_id()) {
-                handle_command(&command);
+        let weak_frame = frame.to_weak_ref();
+        frame.bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
+            if let (Some(frame), Some(command)) = (weak_frame.get(), Command::from(event.get_id()))
+            {
+                handle_command(&frame, &command);
             }
         });
         frame.show(true);
@@ -59,11 +63,33 @@ fn build_menu(frame: &wx::Frame) {
     frame.set_menu_bar(Some(&menu_bar));
 }
 
-fn handle_command(command: &Command) {
+fn handle_command(frame: &Frame, command: &Command) {
     match command {
         Command::FileNew => todo!(),
-        Command::FileOpen => todo!(),
+        Command::FileOpen => {
+            open_file(frame);
+        }
         Command::FileClose => todo!(),
         Command::FileSave => todo!(),
+    }
+}
+
+fn open_file(frame: &Frame) {
+    // TODO: Add Builder for wx::FileDialog
+    let file_dialog = wx::FileDialog::new(
+        Some(frame),
+        "",
+        "",
+        "",
+        "*.*",
+        wx::FC_DEFAULT_STYLE.into(),
+        &wx::Point::default(),
+        &wx::Size::default(),
+        "",
+    );
+    if wx::ID_OK == file_dialog.show_modal() {
+        // TODO: open
+        let path = file_dialog.get_path();
+        println!("open: {}", path);
     }
 }
