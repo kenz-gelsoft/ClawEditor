@@ -33,16 +33,7 @@ fn main() {
         let frame = wx::Frame::builder(wx::Window::none())
             .title("カニツメエディタ")
             .build();
-        let menu_bar = wx::MenuBar::new(0);
-        let file_menu = wx::Menu::new()
-            .item(Command::FileNew, "新規\tCtrl-N")
-            .item(Command::FileOpen, "開く\tCtrl-O")
-            .separator()
-            .item(Command::FileClose, "閉じる\tCtrl-W")
-            .item(Command::FileSave, "保存\tCtrl-S");
-
-        menu_bar.append(Some(&file_menu), "ファイル");
-        frame.set_menu_bar(Some(&menu_bar));
+        build_menu(&frame);
         let _textbox = wx::TextCtrl::builder(Some(&frame))
             .style(wx::TE_MULTILINE.into())
             .build();
@@ -53,6 +44,19 @@ fn main() {
         });
         frame.show(true);
     });
+}
+
+fn build_menu(frame: &wx::Frame) {
+    let menu_bar = wx::MenuBar::new(0);
+    let file_menu = wx::Menu::new()
+        .item(Command::FileNew, "新規\tCtrl-N")
+        .item(Command::FileOpen, "開く\tCtrl-O")
+        .separator()
+        .item(Command::FileClose, "閉じる\tCtrl-W")
+        .item(Command::FileSave, "保存\tCtrl-S");
+
+    menu_bar.append(Some(&file_menu), "ファイル");
+    frame.set_menu_bar(Some(&menu_bar));
 }
 
 fn handle_command(command: &Command) {
