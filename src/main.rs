@@ -26,6 +26,9 @@ enum Command {
     EditSelectAll,
     EditDate,
     EditFont,
+    // 表示
+    ViewStatusBar,
+    ViewWordWrap,
 }
 impl Command {
     fn from(v: c_int) -> Option<Self> {
@@ -51,6 +54,9 @@ impl Command {
             EditSelectAll,
             EditDate,
             EditFont,
+            // 表示
+            ViewStatusBar,
+            ViewWordWrap,
         ] {
             if v == e.into() {
                 return Some(e);
@@ -119,11 +125,17 @@ fn build_menu(frame: &wx::Frame) {
         .item(Command::EditSelectAll, "フォント(&O)");
     menu_bar.append(Some(&edit_menu), "編集(&E)");
 
+    let view_menu = wx::Menu::new()
+        .check_item(Command::ViewStatusBar, "ステータスバー(&S)")
+        .check_item(Command::ViewWordWrap, "右端での折り返し(&W)");
+    menu_bar.append(Some(&view_menu), "表示(&V)");
+
     frame.set_menu_bar(Some(&menu_bar));
 }
 
 fn handle_command(frame: &Frame, command: &Command) {
     match command {
+        // ファイル
         Command::FileNew => todo!(),
         Command::FileOpen => {
             open_file(frame);
@@ -135,6 +147,7 @@ fn handle_command(frame: &Frame, command: &Command) {
         Command::FileClose => {
             frame.close(false);
         }
+        // 編集
         Command::EditUndo => todo!(),
         Command::EditCut => todo!(),
         Command::EditCopy => todo!(),
@@ -148,6 +161,9 @@ fn handle_command(frame: &Frame, command: &Command) {
         Command::EditSelectAll => todo!(),
         Command::EditDate => todo!(),
         Command::EditFont => todo!(),
+        // 表示
+        Command::ViewStatusBar => todo!(),
+        Command::ViewWordWrap => todo!(),
     }
 }
 
