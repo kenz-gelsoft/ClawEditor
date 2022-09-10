@@ -144,6 +144,7 @@ fn build_menu(frame: &wx::Frame) {
 
     let help_menu = wx::Menu::new()
         .item(Command::Help, "ヘルプの表示(&H)")
+        .separator()
         .item(Command::HelpAbout, "バージョン情報(&A)");
     menu_bar.append(Some(&help_menu), "ヘルプ(&H)");
 
@@ -185,7 +186,9 @@ fn handle_command(frame: &Frame, command: &Command) {
         Command::ViewStatusBar => todo!(),
         // 書式
         Command::Help => todo!(),
-        Command::HelpAbout => todo!(),
+        Command::HelpAbout => {
+            show_about(frame);
+        }
     }
 }
 
@@ -227,4 +230,16 @@ fn save_as(frame: &Frame) {
         let path = file_dialog.get_path();
         println!("save as: {}", path);
     }
+}
+
+fn show_about(frame: &Frame) {
+    wx::message_box(
+        &format!(
+            "カニツメエディタ\nバージョン {}\n© 2022- KENZ, All Rights Reserved.",
+            env!("CARGO_PKG_VERSION")
+        ),
+        "カニツメエディタ",
+        (wx::OK | wx::CENTRE).into(),
+        Some(frame),
+    );
 }
