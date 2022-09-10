@@ -6,16 +6,52 @@ use wx::methods::*;
 
 #[derive(Clone, Copy)]
 enum Command {
+    // ファイル
     FileNew = wx::ID_HIGHEST as isize,
     FileOpen,
     FileSave,
     FileSaveAs,
     FileClose,
+    // 編集
+    EditUndo,
+    EditCut,
+    EditCopy,
+    EditPaste,
+    EditDelete,
+    EditFind,
+    EditFindNext,
+    EditFindPrevious,
+    EditReplace,
+    EditGo,
+    EditSelectAll,
+    EditDate,
+    EditFont,
 }
 impl Command {
     fn from(v: c_int) -> Option<Self> {
         use Command::*;
-        for e in [FileNew, FileOpen, FileSave, FileSaveAs, FileClose] {
+        for e in [
+            // ファイル
+            FileNew,
+            FileOpen,
+            FileSave,
+            FileSaveAs,
+            FileClose,
+            // 編集
+            EditUndo,
+            EditCut,
+            EditCopy,
+            EditPaste,
+            EditDelete,
+            EditFind,
+            EditFindNext,
+            EditFindPrevious,
+            EditReplace,
+            EditGo,
+            EditSelectAll,
+            EditDate,
+            EditFont,
+        ] {
             if v == e.into() {
                 return Some(e);
             }
@@ -53,6 +89,7 @@ fn main() {
 
 fn build_menu(frame: &wx::Frame) {
     let menu_bar = wx::MenuBar::new(0);
+
     let file_menu = wx::Menu::new()
         .item(Command::FileNew, "新規(&N)\tCtrl-N")
         .item(Command::FileOpen, "開く(&W)\tCtrl-O")
@@ -60,8 +97,28 @@ fn build_menu(frame: &wx::Frame) {
         .item(Command::FileSaveAs, "名前を付けて保存(&A)\tCtrl-Shift-S")
         .separator()
         .item(Command::FileClose, "終了(&X)\tCtrl-W");
-
     menu_bar.append(Some(&file_menu), "ファイル(&F)");
+
+    let edit_menu = wx::Menu::new()
+        .item(Command::EditUndo, "元に戻す(&U)\tCtrl-Z")
+        .separator()
+        .item(Command::EditCut, "切り取り(&T)\tCtrl-X")
+        .item(Command::EditCopy, "コピー(&C)\tCtrl-C")
+        .item(Command::EditPaste, "貼り付け(&P)\tCtrl-V")
+        .item(Command::EditDelete, "削除(&L)\tDel")
+        .separator()
+        .item(Command::EditFind, "検索する(&F)\tCtrl-F")
+        .item(Command::EditFindNext, "次を検索(&N)\tF3")
+        .item(Command::EditFindPrevious, "前を検索(&V)\tShift-F3")
+        .item(Command::EditReplace, "置換(&R)\tCtrl-H")
+        .item(Command::EditGo, "移動(&G)\tCtrl-G")
+        .separator()
+        .item(Command::EditSelectAll, "すべて選択(&A)\tCtrl-A")
+        .item(Command::EditDate, "日付と時刻(&D)\tF5")
+        .separator()
+        .item(Command::EditSelectAll, "フォント(&O)");
+    menu_bar.append(Some(&edit_menu), "編集(&E)");
+
     frame.set_menu_bar(Some(&menu_bar));
 }
 
@@ -78,6 +135,19 @@ fn handle_command(frame: &Frame, command: &Command) {
         Command::FileClose => {
             frame.close(false);
         }
+        Command::EditUndo => todo!(),
+        Command::EditCut => todo!(),
+        Command::EditCopy => todo!(),
+        Command::EditPaste => todo!(),
+        Command::EditDelete => todo!(),
+        Command::EditFind => todo!(),
+        Command::EditFindNext => todo!(),
+        Command::EditFindPrevious => todo!(),
+        Command::EditReplace => todo!(),
+        Command::EditGo => todo!(),
+        Command::EditSelectAll => todo!(),
+        Command::EditDate => todo!(),
+        Command::EditFont => todo!(),
     }
 }
 
