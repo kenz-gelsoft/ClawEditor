@@ -8,6 +8,7 @@ use wx::methods::*;
 enum Command {
     // ファイル
     FileNew = wx::ID_HIGHEST as isize,
+    FileNewWindow,
     FileOpen,
     FileSave,
     FileSaveAs,
@@ -25,10 +26,14 @@ enum Command {
     EditGo,
     EditSelectAll,
     EditDate,
-    EditFont,
+    // 書式
+    FormatWordWrap,
+    FormatFont,
     // 表示
     ViewStatusBar,
-    ViewWordWrap,
+    // ヘルプ
+    Help,
+    HelpAbout,
 }
 impl Command {
     fn from(v: c_int) -> Option<Self> {
@@ -36,6 +41,7 @@ impl Command {
         for e in [
             // ファイル
             FileNew,
+            FileNewWindow,
             FileOpen,
             FileSave,
             FileSaveAs,
@@ -53,10 +59,14 @@ impl Command {
             EditGo,
             EditSelectAll,
             EditDate,
-            EditFont,
+            // 書式
+            FormatWordWrap,
+            FormatFont,
             // 表示
             ViewStatusBar,
-            ViewWordWrap,
+            // ヘルプ
+            Help,
+            HelpAbout,
         ] {
             if v == e.into() {
                 return Some(e);
@@ -98,9 +108,10 @@ fn build_menu(frame: &wx::Frame) {
 
     let file_menu = wx::Menu::new()
         .item(Command::FileNew, "新規(&N)\tCtrl-N")
-        .item(Command::FileOpen, "開く(&W)\tCtrl-O")
+        .item(Command::FileNewWindow, "新しいウィンドウ(&W)\tCtrl-Shift-N")
+        .item(Command::FileOpen, "開く(&W)…\tCtrl-O")
         .item(Command::FileSave, "保存(&S)\tCtrl-S")
-        .item(Command::FileSaveAs, "名前を付けて保存(&A)\tCtrl-Shift-S")
+        .item(Command::FileSaveAs, "名前を付けて保存(&A)…\tCtrl-Shift-S")
         .separator()
         .item(Command::FileClose, "終了(&X)\tCtrl-W");
     menu_bar.append(Some(&file_menu), "ファイル(&F)");
@@ -113,22 +124,28 @@ fn build_menu(frame: &wx::Frame) {
         .item(Command::EditPaste, "貼り付け(&P)\tCtrl-V")
         .item(Command::EditDelete, "削除(&L)\tDel")
         .separator()
-        .item(Command::EditFind, "検索する(&F)\tCtrl-F")
+        .item(Command::EditFind, "検索(&F)…\tCtrl-F")
         .item(Command::EditFindNext, "次を検索(&N)\tF3")
         .item(Command::EditFindPrevious, "前を検索(&V)\tShift-F3")
-        .item(Command::EditReplace, "置換(&R)\tCtrl-H")
-        .item(Command::EditGo, "移動(&G)\tCtrl-G")
+        .item(Command::EditReplace, "置換(&R)…\tCtrl-H")
+        .item(Command::EditGo, "行へ移動(&G)…\tCtrl-G")
         .separator()
         .item(Command::EditSelectAll, "すべて選択(&A)\tCtrl-A")
-        .item(Command::EditDate, "日付と時刻(&D)\tF5")
-        .separator()
-        .item(Command::EditSelectAll, "フォント(&O)");
+        .item(Command::EditDate, "日付と時刻(&D)\tF5");
     menu_bar.append(Some(&edit_menu), "編集(&E)");
 
-    let view_menu = wx::Menu::new()
-        .check_item(Command::ViewStatusBar, "ステータスバー(&S)")
-        .check_item(Command::ViewWordWrap, "右端での折り返し(&W)");
+    let format_menu = wx::Menu::new()
+        .check_item(Command::FormatWordWrap, "右端で折り返す(&W)")
+        .item(Command::FormatFont, "フォント(&O)…");
+    menu_bar.append(Some(&format_menu), "書式(&O)");
+
+    let view_menu = wx::Menu::new().check_item(Command::ViewStatusBar, "ステータスバー(&S)");
     menu_bar.append(Some(&view_menu), "表示(&V)");
+
+    let help_menu = wx::Menu::new()
+        .item(Command::Help, "ヘルプの表示(&H)")
+        .item(Command::HelpAbout, "バージョン情報(&A)");
+    menu_bar.append(Some(&help_menu), "ヘルプ(&H)");
 
     frame.set_menu_bar(Some(&menu_bar));
 }
@@ -137,6 +154,7 @@ fn handle_command(frame: &Frame, command: &Command) {
     match command {
         // ファイル
         Command::FileNew => todo!(),
+        Command::FileNewWindow => todo!(),
         Command::FileOpen => {
             open_file(frame);
         }
@@ -160,10 +178,14 @@ fn handle_command(frame: &Frame, command: &Command) {
         Command::EditGo => todo!(),
         Command::EditSelectAll => todo!(),
         Command::EditDate => todo!(),
-        Command::EditFont => todo!(),
+        // 書式
+        Command::FormatWordWrap => todo!(),
+        Command::FormatFont => todo!(),
         // 表示
         Command::ViewStatusBar => todo!(),
-        Command::ViewWordWrap => todo!(),
+        // 書式
+        Command::Help => todo!(),
+        Command::HelpAbout => todo!(),
     }
 }
 
