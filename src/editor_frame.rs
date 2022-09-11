@@ -93,6 +93,19 @@ impl EditorFrame {
         self.base.set_menu_bar(Some(&menu_bar));
     }
 
+    pub fn new_file(&self) {
+        if self.textbox.is_modified() && self.save().is_err() {
+            return;
+        }
+        self.textbox.clear();
+        self.set_path(None);
+    }
+
+    fn set_path(&self, path: Option<&str>) {
+        *self.file.borrow_mut() = path.map(ToOwned::to_owned);
+        self.textbox.set_modified(false);
+    }
+
     pub fn open_file(&self) {
         // TODO: Add Builder for wx::FileDialog
         let file_dialog = wx::FileDialog::new(
@@ -109,22 +122,22 @@ impl EditorFrame {
         if wx::ID_OK == file_dialog.show_modal() {
             let path = file_dialog.get_path();
             self.textbox.load_file(&path, wx::TEXT_TYPE_ANY);
-            *self.file.borrow_mut() = Some(path);
+            self.set_path(Some(&path));
         }
     }
 
-    pub fn save(&self) {
+    pub fn save(&self) -> Result<(), ()> {
         // if let 式とまとめると save_to() 内で borrow_mut() するため
         // ランタイムエラーになるため、事前にコピーしている
         let path = self.file.borrow().as_ref().map(ToOwned::to_owned);
         if let Some(path) = path {
-            self.save_to(&path);
+            self.save_to(&path)
         } else {
-            self.save_as();
+            self.save_as()
         }
     }
 
-    pub fn save_as(&self) {
+    pub fn save_as(&self) -> Result<(), ()> {
         // TODO: Add Builder for wx::FileDialog
         let file_dialog = wx::FileDialog::new(
             Some(&self.base),
@@ -138,15 +151,19 @@ impl EditorFrame {
             "",
         );
         if wx::ID_OK == file_dialog.show_modal() {
-            self.save_to(&file_dialog.get_path());
+            self.save_to(&file_dialog.get_path())
+        } else {
+            Err(())
         }
     }
 
-    fn save_to(&self, path: &str) {
+    fn save_to(&self, path: &str) -> Result<(), ()> {
         // TODO: Error Handling
         if self.textbox.save_file(&path, wx::TEXT_TYPE_ANY) {
-            self.textbox.set_modified(false);
-            *self.file.borrow_mut() = Some(path.to_owned());
+            self.set_path(Some(path));
+            Ok(())
+        } else {
+            Err(())
         }
     }
 

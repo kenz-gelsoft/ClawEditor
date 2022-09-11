@@ -93,16 +93,18 @@ fn main() {
 fn handle_command(frame: &EditorFrame, command: &Command) {
     match command {
         // ファイル
-        Command::FileNew => todo!(),
+        Command::FileNew => {
+            frame.new_file();
+        }
         Command::FileNewWindow => todo!(),
         Command::FileOpen => {
             frame.open_file();
         }
         Command::FileSave => {
-            frame.save();
+            _ = frame.save();
         }
         Command::FileSaveAs => {
-            frame.save_as();
+            _ = frame.save_as();
         }
         Command::FileClose => {
             frame.close();
