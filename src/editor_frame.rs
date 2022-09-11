@@ -1,4 +1,7 @@
+use std::cell::RefCell;
 use std::os::raw::{c_int, c_long, c_void};
+use std::rc::Rc;
+
 use wx;
 use wx::methods::*;
 
@@ -8,6 +11,8 @@ use crate::Command;
 pub struct EditorFrame {
     base: wx::Frame,
     textbox: wx::TextCtrl,
+    // TODO: avoid interior mutability
+    file: Rc<RefCell<Option<String>>>,
 }
 impl EditorFrame {
     pub fn new() -> Self {
@@ -20,6 +25,7 @@ impl EditorFrame {
         let frame = EditorFrame {
             base: frame,
             textbox,
+            file: Rc::new(RefCell::new(None)),
         };
         let frame_copy = frame.clone();
         frame
@@ -101,9 +107,9 @@ impl EditorFrame {
             "",
         );
         if wx::ID_OK == file_dialog.show_modal() {
-            // TODO: open
             let path = file_dialog.get_path();
-            println!("open: {}", path);
+            self.textbox.load_file(&path, wx::TEXT_TYPE_ANY);
+            *self.file.borrow_mut() = Some(path);
         }
     }
 
