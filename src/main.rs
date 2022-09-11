@@ -1,6 +1,6 @@
 #![windows_subsystem = "windows"]
 
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_long, c_void};
 use wx;
 use wx::methods::*;
 
@@ -82,6 +82,7 @@ impl From<Command> for c_int {
 }
 
 type Frame = wx::FrameIsOwned<false>;
+type TextCtrl = wx::TextCtrlIsOwned<false>;
 
 fn main() {
     wx::App::run(|_| {
@@ -95,11 +96,14 @@ fn main() {
         let weak_frame = frame.to_weak_ref();
         let weak_textbox = textbox.to_weak_ref();
         frame.bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
-            if let (Some(frame), Some(command)) = (weak_frame.get(), Command::from(event.get_id()))
-            {
-                handle_command(&frame, &command);
-            } else if let Some(textbox) = weak_textbox.get() {
-                textbox.process_event(event);
+            if let Some(textbox) = weak_textbox.get() {
+                if let (Some(frame), Some(command)) =
+                    (weak_frame.get(), Command::from(event.get_id()))
+                {
+                    handle_command(&frame, &textbox, &command);
+                } else {
+                    textbox.process_event(event);
+                }
             }
         });
         frame.show(true);
@@ -154,7 +158,7 @@ fn build_menu(frame: &wx::Frame) {
     frame.set_menu_bar(Some(&menu_bar));
 }
 
-fn handle_command(frame: &Frame, command: &Command) {
+fn handle_command(frame: &Frame, textbox: &TextCtrl, command: &Command) {
     match command {
         // ファイル
         Command::FileNew => todo!(),
@@ -170,7 +174,9 @@ fn handle_command(frame: &Frame, command: &Command) {
             frame.close(false);
         }
         // 編集
-        Command::EditDelete => todo!(),
+        Command::EditDelete => {
+            delete_selection(textbox);
+        }
         Command::EditFind => todo!(),
         Command::EditFindNext => todo!(),
         Command::EditFindPrevious => todo!(),
@@ -229,6 +235,20 @@ fn save_as(frame: &Frame) {
         let path = file_dialog.get_path();
         println!("save as: {}", path);
     }
+}
+
+fn delete_selection(textbox: &TextCtrl) {
+    let mut from: c_long = 0;
+    let mut to: c_long = 0;
+    textbox.get_selection_long(
+        &mut from as *mut c_int as *mut c_void,
+        &mut to as *mut c_int as *mut c_void,
+    );
+    // 選択範囲がないときはカレットの右1文字を削除
+    if from == to {
+        to += 1;
+    }
+    textbox.remove(from, to);
 }
 
 fn show_about(frame: &Frame) {
