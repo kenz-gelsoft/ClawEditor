@@ -81,8 +81,6 @@ impl From<Command> for c_int {
     }
 }
 
-type TextCtrl = wx::TextCtrlIsOwned<false>;
-
 fn main() {
     wx::App::run(|_| {
         let frame = EditorFrame::new();
@@ -90,7 +88,7 @@ fn main() {
     });
 }
 
-fn handle_command(frame: &EditorFrame, textbox: &TextCtrl, command: &Command) {
+fn handle_command(frame: &EditorFrame, command: &Command) {
     match command {
         // ファイル
         Command::FileNew => todo!(),
@@ -107,7 +105,7 @@ fn handle_command(frame: &EditorFrame, textbox: &TextCtrl, command: &Command) {
         }
         // 編集
         Command::EditDelete => {
-            delete_selection(textbox);
+            frame.delete_selection();
         }
         Command::EditFind => todo!(),
         Command::EditFindNext => todo!(),
@@ -131,6 +129,7 @@ fn handle_command(frame: &EditorFrame, textbox: &TextCtrl, command: &Command) {
 #[derive(Clone)]
 struct EditorFrame {
     base: wx::Frame,
+    textbox: wx::TextCtrl,
 }
 impl EditorFrame {
     fn new() -> Self {
@@ -140,18 +139,18 @@ impl EditorFrame {
         let textbox = wx::TextCtrl::builder(Some(&frame))
             .style(wx::TE_MULTILINE.into())
             .build();
-        let frame = EditorFrame { base: frame };
+        let frame = EditorFrame {
+            base: frame,
+            textbox,
+        };
         let frame_copy = frame.clone();
-        let weak_textbox = textbox.to_weak_ref();
         frame
             .base
             .bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
-                if let Some(textbox) = weak_textbox.get() {
-                    if let Some(command) = Command::from(event.get_id()) {
-                        handle_command(&frame_copy, &textbox, &command);
-                    } else {
-                        textbox.process_event(event);
-                    }
+                if let Some(command) = Command::from(event.get_id()) {
+                    handle_command(&frame_copy, &command);
+                } else {
+                    frame_copy.textbox.process_event(event);
                 }
             });
         frame.build_menu();
@@ -246,6 +245,16 @@ impl EditorFrame {
         }
     }
 
+    fn delete_selection(&self) {
+        let mut from: c_long = 0;
+        let mut to: c_long = 0;
+        self.textbox.get_selection_long(
+            &mut from as *mut c_int as *mut c_void,
+            &mut to as *mut c_int as *mut c_void,
+        );
+        self.textbox.remove(from, to);
+    }
+
     fn show_about(&self) {
         wx::message_box(
             &format!(
@@ -257,14 +266,4 @@ impl EditorFrame {
             Some(&self.base),
         );
     }
-}
-
-fn delete_selection(textbox: &TextCtrl) {
-    let mut from: c_long = 0;
-    let mut to: c_long = 0;
-    textbox.get_selection_long(
-        &mut from as *mut c_int as *mut c_void,
-        &mut to as *mut c_int as *mut c_void,
-    );
-    textbox.remove(from, to);
 }
