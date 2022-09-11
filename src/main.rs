@@ -243,10 +243,6 @@ fn delete_selection(textbox: &TextCtrl) {
         &mut from as *mut c_int as *mut c_void,
         &mut to as *mut c_int as *mut c_void,
     );
-    // 選択範囲がないときはカレットの右1文字を削除
-    if from == to {
-        to += 1;
-    }
     textbox.remove(from, to);
 }
 
