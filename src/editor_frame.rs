@@ -113,6 +113,17 @@ impl EditorFrame {
         }
     }
 
+    pub fn save(&self) {
+        // if let 式とまとめると save_to() 内で borrow_mut() するため
+        // ランタイムエラーになるため、事前にコピーしている
+        let path = self.file.borrow().as_ref().map(ToOwned::to_owned);
+        if let Some(path) = path {
+            self.save_to(&path);
+        } else {
+            self.save_as();
+        }
+    }
+
     pub fn save_as(&self) {
         // TODO: Add Builder for wx::FileDialog
         let file_dialog = wx::FileDialog::new(
@@ -127,9 +138,15 @@ impl EditorFrame {
             "",
         );
         if wx::ID_OK == file_dialog.show_modal() {
-            // TODO: open
-            let path = file_dialog.get_path();
-            println!("save as: {}", path);
+            self.save_to(&file_dialog.get_path());
+        }
+    }
+
+    fn save_to(&self, path: &str) {
+        // TODO: Error Handling
+        if self.textbox.save_file(&path, wx::TEXT_TYPE_ANY) {
+            self.textbox.set_modified(false);
+            *self.file.borrow_mut() = Some(path.to_owned());
         }
     }
 

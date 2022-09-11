@@ -98,7 +98,9 @@ fn handle_command(frame: &EditorFrame, command: &Command) {
         Command::FileOpen => {
             frame.open_file();
         }
-        Command::FileSave => todo!(),
+        Command::FileSave => {
+            frame.save();
+        }
         Command::FileSaveAs => {
             frame.save_as();
         }
