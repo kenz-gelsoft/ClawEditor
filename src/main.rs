@@ -81,7 +81,6 @@ impl From<Command> for c_int {
     }
 }
 
-type Frame = wx::FrameIsOwned<false>;
 type TextCtrl = wx::TextCtrlIsOwned<false>;
 
 fn main() {
@@ -91,6 +90,45 @@ fn main() {
     });
 }
 
+fn handle_command(frame: &EditorFrame, textbox: &TextCtrl, command: &Command) {
+    match command {
+        // ファイル
+        Command::FileNew => todo!(),
+        Command::FileNewWindow => todo!(),
+        Command::FileOpen => {
+            frame.open_file();
+        }
+        Command::FileSave => todo!(),
+        Command::FileSaveAs => {
+            frame.save_as();
+        }
+        Command::FileClose => {
+            frame.base.close(false);
+        }
+        // 編集
+        Command::EditDelete => {
+            delete_selection(textbox);
+        }
+        Command::EditFind => todo!(),
+        Command::EditFindNext => todo!(),
+        Command::EditFindPrevious => todo!(),
+        Command::EditReplace => todo!(),
+        Command::EditGo => todo!(),
+        Command::EditDate => todo!(),
+        // 書式
+        Command::FormatWordWrap => todo!(),
+        Command::FormatFont => todo!(),
+        // 表示
+        Command::ViewStatusBar => todo!(),
+        // 書式
+        Command::Help => todo!(),
+        Command::HelpAbout => {
+            frame.show_about();
+        }
+    }
+}
+
+#[derive(Clone)]
 struct EditorFrame {
     base: wx::Frame,
 }
@@ -102,20 +140,20 @@ impl EditorFrame {
         let textbox = wx::TextCtrl::builder(Some(&frame))
             .style(wx::TE_MULTILINE.into())
             .build();
-        let weak_frame = frame.to_weak_ref();
-        let weak_textbox = textbox.to_weak_ref();
-        frame.bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
-            if let Some(textbox) = weak_textbox.get() {
-                if let (Some(frame), Some(command)) =
-                    (weak_frame.get(), Command::from(event.get_id()))
-                {
-                    handle_command(&frame, &textbox, &command);
-                } else {
-                    textbox.process_event(event);
-                }
-            }
-        });
         let frame = EditorFrame { base: frame };
+        let frame_copy = frame.clone();
+        let weak_textbox = textbox.to_weak_ref();
+        frame
+            .base
+            .bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
+                if let Some(textbox) = weak_textbox.get() {
+                    if let Some(command) = Command::from(event.get_id()) {
+                        handle_command(&frame_copy, &textbox, &command);
+                    } else {
+                        textbox.process_event(event);
+                    }
+                }
+            });
         frame.build_menu();
         frame
     }
@@ -167,83 +205,57 @@ impl EditorFrame {
 
         self.base.set_menu_bar(Some(&menu_bar));
     }
-}
 
-fn handle_command(frame: &Frame, textbox: &TextCtrl, command: &Command) {
-    match command {
-        // ファイル
-        Command::FileNew => todo!(),
-        Command::FileNewWindow => todo!(),
-        Command::FileOpen => {
-            open_file(frame);
-        }
-        Command::FileSave => todo!(),
-        Command::FileSaveAs => {
-            save_as(frame);
-        }
-        Command::FileClose => {
-            frame.close(false);
-        }
-        // 編集
-        Command::EditDelete => {
-            delete_selection(textbox);
-        }
-        Command::EditFind => todo!(),
-        Command::EditFindNext => todo!(),
-        Command::EditFindPrevious => todo!(),
-        Command::EditReplace => todo!(),
-        Command::EditGo => todo!(),
-        Command::EditDate => todo!(),
-        // 書式
-        Command::FormatWordWrap => todo!(),
-        Command::FormatFont => todo!(),
-        // 表示
-        Command::ViewStatusBar => todo!(),
-        // 書式
-        Command::Help => todo!(),
-        Command::HelpAbout => {
-            show_about(frame);
+    fn open_file(&self) {
+        // TODO: Add Builder for wx::FileDialog
+        let file_dialog = wx::FileDialog::new(
+            Some(&self.base),
+            "",
+            "",
+            "",
+            "*.*",
+            wx::FC_DEFAULT_STYLE.into(),
+            &wx::Point::default(),
+            &wx::Size::default(),
+            "",
+        );
+        if wx::ID_OK == file_dialog.show_modal() {
+            // TODO: open
+            let path = file_dialog.get_path();
+            println!("open: {}", path);
         }
     }
-}
 
-fn open_file(frame: &Frame) {
-    // TODO: Add Builder for wx::FileDialog
-    let file_dialog = wx::FileDialog::new(
-        Some(frame),
-        "",
-        "",
-        "",
-        "*.*",
-        wx::FC_DEFAULT_STYLE.into(),
-        &wx::Point::default(),
-        &wx::Size::default(),
-        "",
-    );
-    if wx::ID_OK == file_dialog.show_modal() {
-        // TODO: open
-        let path = file_dialog.get_path();
-        println!("open: {}", path);
+    fn save_as(&self) {
+        // TODO: Add Builder for wx::FileDialog
+        let file_dialog = wx::FileDialog::new(
+            Some(&self.base),
+            "",
+            "",
+            "",
+            "*.*",
+            wx::FC_SAVE.into(),
+            &wx::Point::default(),
+            &wx::Size::default(),
+            "",
+        );
+        if wx::ID_OK == file_dialog.show_modal() {
+            // TODO: open
+            let path = file_dialog.get_path();
+            println!("save as: {}", path);
+        }
     }
-}
 
-fn save_as(frame: &Frame) {
-    // TODO: Add Builder for wx::FileDialog
-    let file_dialog = wx::FileDialog::new(
-        Some(frame),
-        "",
-        "",
-        "",
-        "*.*",
-        wx::FC_SAVE.into(),
-        &wx::Point::default(),
-        &wx::Size::default(),
-        "",
-    );
-    if wx::ID_OK == file_dialog.show_modal() {
-        // TODO: open
-        let path = file_dialog.get_path();
-        println!("save as: {}", path);
+    fn show_about(&self) {
+        wx::message_box(
+            &format!(
+                "カニツメエディタ\nバージョン {}\n© 2022- KENZ, All Rights Reserved.",
+                env!("CARGO_PKG_VERSION")
+            ),
+            "カニツメエディタ",
+            (wx::OK | wx::CENTRE).into(),
+            Some(&self.base),
+        );
     }
 }
 
@@ -255,16 +267,4 @@ fn delete_selection(textbox: &TextCtrl) {
         &mut to as *mut c_int as *mut c_void,
     );
     textbox.remove(from, to);
-}
-
-fn show_about(frame: &Frame) {
-    wx::message_box(
-        &format!(
-            "カニツメエディタ\nバージョン {}\n© 2022- KENZ, All Rights Reserved.",
-            env!("CARGO_PKG_VERSION")
-        ),
-        "カニツメエディタ",
-        (wx::OK | wx::CENTRE).into(),
-        Some(frame),
-    );
 }
