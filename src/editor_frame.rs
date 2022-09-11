@@ -94,11 +94,19 @@ impl EditorFrame {
     }
 
     pub fn new_file(&self) {
-        if self.textbox.is_modified() && self.save().is_err() {
+        if self.save_if_modified().is_err() {
             return;
         }
         self.textbox.clear();
         self.set_path(None);
+    }
+
+    fn save_if_modified(&self) -> Result<(), ()> {
+        if self.textbox.is_modified() {
+            self.save()
+        } else {
+            Ok(())
+        }
     }
 
     fn set_path(&self, path: Option<&str>) {
@@ -107,6 +115,9 @@ impl EditorFrame {
     }
 
     pub fn open_file(&self) {
+        if self.save_if_modified().is_err() {
+            return;
+        }
         // TODO: Add Builder for wx::FileDialog
         let file_dialog = wx::FileDialog::new(
             Some(&self.base),
