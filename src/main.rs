@@ -24,7 +24,7 @@ enum Command {
     EditFindPrevious,
     EditReplace,
     EditGo,
-    EditSelectAll,
+    // wx::ID_SELECTALL,
     EditDate,
     // 書式
     FormatWordWrap,
@@ -57,7 +57,7 @@ impl Command {
             EditFindPrevious,
             EditReplace,
             EditGo,
-            EditSelectAll,
+            // wx::ID_SELECTALL,
             EditDate,
             // 書式
             FormatWordWrap,
@@ -137,7 +137,7 @@ fn build_menu(frame: &wx::Frame) {
         .item(Command::EditReplace, "置換(&R)…\tCtrl-H")
         .item(Command::EditGo, "行へ移動(&G)…\tCtrl-G")
         .separator()
-        .item(Command::EditSelectAll, "すべて選択(&A)\tCtrl-A")
+        .item(wx::ID_SELECTALL, "すべて選択(&A)\tCtrl-A")
         .item(Command::EditDate, "日付と時刻(&D)\tF5");
     menu_bar.append(Some(&edit_menu), "編集(&E)");
 
@@ -182,7 +182,6 @@ fn handle_command(frame: &Frame, textbox: &TextCtrl, command: &Command) {
         Command::EditFindPrevious => todo!(),
         Command::EditReplace => todo!(),
         Command::EditGo => todo!(),
-        Command::EditSelectAll => todo!(),
         Command::EditDate => todo!(),
         // 書式
         Command::FormatWordWrap => todo!(),
