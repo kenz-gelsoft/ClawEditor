@@ -14,10 +14,10 @@ enum Command {
     FileSaveAs,
     FileClose,
     // 編集
-    EditUndo,
-    EditCut,
-    EditCopy,
-    EditPaste,
+    // wx::ID_UNDO,
+    // wx::ID_CUT,
+    // wx::ID_COPY,
+    // wx::ID_PASTE,
     EditDelete,
     EditFind,
     EditFindNext,
@@ -47,10 +47,10 @@ impl Command {
             FileSaveAs,
             FileClose,
             // 編集
-            EditUndo,
-            EditCut,
-            EditCopy,
-            EditPaste,
+            // wx::ID_UNDO,
+            // wx::ID_CUT,
+            // wx::ID_COPY,
+            // wx::ID_PASTE,
             EditDelete,
             EditFind,
             EditFindNext,
@@ -89,14 +89,17 @@ fn main() {
             .title("カニツメエディタ")
             .build();
         build_menu(&frame);
-        let _textbox = wx::TextCtrl::builder(Some(&frame))
+        let textbox = wx::TextCtrl::builder(Some(&frame))
             .style(wx::TE_MULTILINE.into())
             .build();
         let weak_frame = frame.to_weak_ref();
+        let weak_textbox = textbox.to_weak_ref();
         frame.bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
             if let (Some(frame), Some(command)) = (weak_frame.get(), Command::from(event.get_id()))
             {
                 handle_command(&frame, &command);
+            } else if let Some(textbox) = weak_textbox.get() {
+                textbox.process_event(event);
             }
         });
         frame.show(true);
@@ -117,11 +120,11 @@ fn build_menu(frame: &wx::Frame) {
     menu_bar.append(Some(&file_menu), "ファイル(&F)");
 
     let edit_menu = wx::Menu::new()
-        .item(Command::EditUndo, "元に戻す(&U)\tCtrl-Z")
+        .item(wx::ID_UNDO, "元に戻す(&U)\tCtrl-Z")
         .separator()
-        .item(Command::EditCut, "切り取り(&T)\tCtrl-X")
-        .item(Command::EditCopy, "コピー(&C)\tCtrl-C")
-        .item(Command::EditPaste, "貼り付け(&P)\tCtrl-V")
+        .item(wx::ID_CUT, "切り取り(&T)\tCtrl-X")
+        .item(wx::ID_COPY, "コピー(&C)\tCtrl-C")
+        .item(wx::ID_PASTE, "貼り付け(&P)\tCtrl-V")
         .item(Command::EditDelete, "削除(&L)\tDel")
         .separator()
         .item(Command::EditFind, "検索(&F)…\tCtrl-F")
@@ -167,10 +170,6 @@ fn handle_command(frame: &Frame, command: &Command) {
             frame.close(false);
         }
         // 編集
-        Command::EditUndo => todo!(),
-        Command::EditCut => todo!(),
-        Command::EditCopy => todo!(),
-        Command::EditPaste => todo!(),
         Command::EditDelete => todo!(),
         Command::EditFind => todo!(),
         Command::EditFindNext => todo!(),
