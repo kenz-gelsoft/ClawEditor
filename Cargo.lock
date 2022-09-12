@@ -18,8 +18,7 @@ dependencies = [
 [[package]]
 name = "wxrust"
 version = "0.0.1-alpha"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68903d8c36ffa5c33c23e761eab02d091e74456b378abe78de05c2eadf6402d4"
+source = "git+https://github.com/kenz-gelsoft/wxRust2#dfe91f6e966fa5bd2be95357f6090712ac1d4673"
 dependencies = [
  "cc",
  "wxrust-base",
@@ -29,8 +28,7 @@ dependencies = [
 [[package]]
 name = "wxrust-base"
 version = "0.0.1-alpha"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7d411b4530d57b455a34d328b7661a67ef8a12f30daf7432c2ab321cb507faa"
+source = "git+https://github.com/kenz-gelsoft/wxRust2#dfe91f6e966fa5bd2be95357f6090712ac1d4673"
 dependencies = [
  "cc",
  "wxrust-config",

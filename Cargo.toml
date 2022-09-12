@@ -7,3 +7,7 @@ edition = "2021"
 
 [dependencies]
 wx = { package = "wxrust", version = "0.0.1-alpha" }
+
+[patch.crates-io]
+wxrust = { git = "https://github.com/kenz-gelsoft/wxRust2" }
+wxrust-base = { git = "https://github.com/kenz-gelsoft/wxRust2" }
