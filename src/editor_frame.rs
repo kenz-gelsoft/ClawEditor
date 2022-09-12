@@ -7,6 +7,9 @@ use wx::methods::*;
 
 use crate::Command;
 
+const APP_TITLE: &str = "カニツメエディタ";
+const UNTITLED: &str = "無題";
+
 #[derive(Clone)]
 pub struct EditorFrame {
     base: wx::Frame,
@@ -16,9 +19,7 @@ pub struct EditorFrame {
 }
 impl EditorFrame {
     pub fn new() -> Self {
-        let frame = wx::Frame::builder(wx::Window::none())
-            .title("カニツメエディタ")
-            .build();
+        let frame = wx::Frame::builder(wx::Window::none()).build();
         let textbox = wx::TextCtrl::builder(Some(&frame))
             .style(wx::TE_MULTILINE.into())
             .build();
@@ -37,7 +38,16 @@ impl EditorFrame {
                     frame_copy.textbox.process_event(event);
                 }
             });
+
+        let frame_copy = frame.clone();
+        frame
+            .base
+            .bind(wx::RustEvent::Text, move |_: &wx::CommandEvent| {
+                frame_copy.on_text_modified();
+            });
         frame.build_menu();
+        frame.update_title();
+
         frame
     }
 
@@ -118,18 +128,7 @@ impl EditorFrame {
         if self.save_if_modified().is_err() {
             return;
         }
-        // TODO: Add Builder for wx::FileDialog
-        let file_dialog = wx::FileDialog::new(
-            Some(&self.base),
-            "",
-            "",
-            "",
-            "*.*",
-            wx::FC_DEFAULT_STYLE.into(),
-            &wx::Point::default(),
-            &wx::Size::default(),
-            "",
-        );
+        let file_dialog = wx::FileDialog::builder(Some(&self.base)).build();
         if wx::ID_OK == file_dialog.show_modal() {
             let path = file_dialog.get_path();
             self.textbox.load_file(&path, wx::TEXT_TYPE_ANY);
@@ -149,18 +148,9 @@ impl EditorFrame {
     }
 
     pub fn save_as(&self) -> Result<(), ()> {
-        // TODO: Add Builder for wx::FileDialog
-        let file_dialog = wx::FileDialog::new(
-            Some(&self.base),
-            "",
-            "",
-            "",
-            "*.*",
-            wx::FC_SAVE.into(),
-            &wx::Point::default(),
-            &wx::Size::default(),
-            "",
-        );
+        let file_dialog = wx::FileDialog::builder(Some(&self.base))
+            .style(wx::FC_SAVE.into())
+            .build();
         if wx::ID_OK == file_dialog.show_modal() {
             self.save_to(&file_dialog.get_path())
         } else {
@@ -202,5 +192,22 @@ impl EditorFrame {
             (wx::OK | wx::CENTRE).into(),
             Some(&self.base),
         );
+    }
+
+    fn on_text_modified(&self) {
+        self.update_title();
+    }
+
+    fn update_title(&self) {
+        let mut modified = "";
+        let mut file = UNTITLED.to_owned();
+        if let Some(path) = self.file.borrow().as_ref() {
+            file = path.to_owned();
+        }
+        if self.textbox.is_modified() {
+            modified = "*";
+        }
+        let title = format!("{}{} - {}", modified, file, APP_TITLE);
+        self.base.set_title(&title);
     }
 }
