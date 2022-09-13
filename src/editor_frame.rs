@@ -7,7 +7,7 @@ use wx::methods::*;
 
 use crate::Command;
 
-const APP_TITLE: &str = "カニツメエディタ";
+const APP_NAME: &str = "カニツメエディタ";
 const UNTITLED: &str = "無題";
 
 #[derive(Clone)]
@@ -190,10 +190,11 @@ impl EditorFrame {
     pub fn show_about(&self) {
         wx::message_box(
             &format!(
-                "カニツメエディタ\nバージョン {}\n© 2022- KENZ, All Rights Reserved.",
+                "{}\nバージョン {}\n© 2022- KENZ, All Rights Reserved.",
+                APP_NAME,
                 env!("CARGO_PKG_VERSION")
             ),
-            "カニツメエディタ",
+            APP_NAME,
             (wx::OK | wx::CENTRE).into(),
             Some(&self.base),
         );
@@ -212,7 +213,7 @@ impl EditorFrame {
         if self.textbox.is_modified() {
             modified = "*";
         }
-        let title = format!("{}{} - {}", modified, file, APP_TITLE);
+        let title = format!("{}{} - {}", modified, file, APP_NAME);
         self.base.set_title(&title);
     }
 }
