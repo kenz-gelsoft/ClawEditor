@@ -125,7 +125,9 @@ fn handle_command(frame: &EditorFrame, command: &Command) {
         // 表示
         Command::ViewStatusBar => todo!(),
         // 書式
-        Command::Help => todo!(),
+        Command::Help => {
+            frame.open_help();
+        }
         Command::HelpAbout => {
             frame.show_about();
         }

@@ -182,6 +182,11 @@ impl EditorFrame {
         self.textbox.remove(from, to);
     }
 
+    pub fn open_help(&self) {
+        let project_home = "https://github.com/kenz-gelsoft/ClawEditor/";
+        wx::launch_default_browser(project_home, 0);
+    }
+
     pub fn show_about(&self) {
         wx::message_box(
             &format!(
