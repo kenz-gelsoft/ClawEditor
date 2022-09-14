@@ -10,6 +10,9 @@ use crate::Command;
 const APP_NAME: &str = "カニツメエディタ";
 const UNTITLED: &str = "無題";
 
+#[cfg(windows)]
+const CW_USEDEFAULT: c_int = c_int::MIN;
+
 #[derive(Clone)]
 pub struct EditorFrame {
     base: wx::Frame,
@@ -19,7 +22,17 @@ pub struct EditorFrame {
 }
 impl EditorFrame {
     pub fn new() -> Self {
-        let frame = wx::Frame::builder(wx::Window::none()).build();
+        let default_size = if cfg!(windows) {
+            // XXX: Windows プログラムとして自然なデフォルトサイズにするため、
+            // CW_USEDEFAULT を指定しています。
+            // wxMSW が CreateWindow() に size を渡すことに依存しています。
+            wx::Size::new_with_int(CW_USEDEFAULT, CW_USEDEFAULT)
+        } else {
+            wx::Size::default()
+        };
+        let frame = wx::Frame::builder(wx::Window::none())
+            .size(default_size)
+            .build();
         let textbox = wx::TextCtrl::builder(Some(&frame))
             .style(wx::TE_MULTILINE.into())
             .build();
