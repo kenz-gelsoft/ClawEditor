@@ -5,7 +5,7 @@ use std::rc::Rc;
 use wx;
 use wx::methods::*;
 
-use crate::Command;
+use crate::commands::{self, Command};
 
 const APP_NAME: &str = "カニツメエディタ";
 const UNTITLED: &str = "無題";
@@ -46,7 +46,7 @@ impl EditorFrame {
             .base
             .bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
                 if let Some(command) = Command::from(event.get_id()) {
-                    crate::handle_command(&frame_copy, &command);
+                    commands::handle_command(&frame_copy, &command);
                 } else {
                     frame_copy.textbox.process_event(event);
                 }
