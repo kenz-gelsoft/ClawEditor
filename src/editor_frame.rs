@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::marker::PhantomData;
 use std::os::raw::{c_int, c_long, c_void};
 use std::rc::Rc;
 
@@ -13,15 +14,84 @@ const UNTITLED: &str = "無題";
 #[cfg(windows)]
 const CW_USEDEFAULT: c_int = c_int::MIN;
 
+trait DocumentListener {
+    fn on_text_modified(&self);
+}
+
+trait Document<L: DocumentListener> {
+    fn forward_event(&self, event: &wx::CommandEvent);
+    fn clear(&self);
+    fn delete_selection(&self);
+    fn is_modified(&self) -> bool;
+    fn reset_modified(&self);
+    fn set_listener(&self, listener: &Rc<L>);
+    fn load_from(&self, file_path: &str);
+    fn save_to(&self, file_path: &str) -> bool;
+}
+
+struct EditorCtrl<L: DocumentListener> {
+    ctrl: wx::TextCtrl,
+    listener: PhantomData<L>,
+}
+impl<L: DocumentListener> EditorCtrl<L> {
+    fn new<W: WindowMethods>(parent: &W) -> Self {
+        let textbox = wx::TextCtrl::builder(Some(parent))
+            .style(wx::TE_MULTILINE.into())
+            .build();
+        Self {
+            ctrl: textbox,
+            listener: PhantomData,
+        }
+    }
+}
+impl<L: DocumentListener + 'static> Document<L> for EditorCtrl<L> {
+    fn forward_event(&self, event: &wx::CommandEvent) {
+        self.ctrl.process_event(event);
+    }
+    fn clear(&self) {
+        self.ctrl.clear();
+    }
+    fn delete_selection(&self) {
+        let mut from: c_long = 0;
+        let mut to: c_long = 0;
+        self.ctrl.get_selection_long(
+            &mut from as *mut c_int as *mut c_void,
+            &mut to as *mut c_int as *mut c_void,
+        );
+        self.ctrl.remove(from, to);
+    }
+    fn is_modified(&self) -> bool {
+        self.ctrl.is_modified()
+    }
+    fn reset_modified(&self) {
+        self.ctrl.set_modified(false);
+    }
+    fn set_listener(&self, listener: &Rc<L>) {
+        let weak = Rc::downgrade(&listener);
+        self.ctrl
+            .bind(wx::RustEvent::Text, move |_: &wx::CommandEvent| {
+                if let Some(listener) = weak.upgrade() {
+                    listener.on_text_modified();
+                }
+            });
+    }
+    fn load_from(&self, file_path: &str) {
+        self.ctrl.load_file(file_path, wx::TEXT_TYPE_ANY);
+    }
+    fn save_to(&self, file_path: &str) -> bool {
+        self.ctrl.save_file(file_path, wx::TEXT_TYPE_ANY)
+    }
+}
+
 #[derive(Clone)]
 pub struct EditorFrame {
     base: wx::Frame,
-    textbox: wx::TextCtrl,
+    editor: Rc<EditorCtrl<EditorFrame>>,
     // TODO: avoid interior mutability
     file: Rc<RefCell<Option<String>>>,
 }
 impl EditorFrame {
-    pub fn new() -> Self {
+    pub fn new() -> Rc<Self> {
         let default_size = if cfg!(windows) {
             // XXX: Windows プログラムとして自然なデフォルトサイズにするため、
             // CW_USEDEFAULT を指定しています。
@@ -33,14 +103,13 @@ impl EditorFrame {
         let frame = wx::Frame::builder(wx::Window::none())
             .size(default_size)
             .build();
-        let textbox = wx::TextCtrl::builder(Some(&frame))
-            .style(wx::TE_MULTILINE.into())
-            .build();
-        let frame = EditorFrame {
+        let editor = Rc::new(EditorCtrl::new(&frame));
+        let frame = Rc::new(EditorFrame {
             base: frame,
-            textbox,
+            editor: editor.clone(),
             file: Rc::new(RefCell::new(None)),
-        };
+        });
+        editor.set_listener(&frame);
         let frame_copy = frame.clone();
         frame
             .base
@@ -48,15 +117,8 @@ impl EditorFrame {
                 if let Some(command) = Command::from(event.get_id()) {
                     commands::handle_command(&frame_copy, &command);
                 } else {
-                    frame_copy.textbox.process_event(event);
+                    frame_copy.editor.forward_event(event);
                 }
-            });
-
-        let frame_copy = frame.clone();
-        frame
-            .base
-            .bind(wx::RustEvent::Text, move |_: &wx::CommandEvent| {
-                frame_copy.on_text_modified();
             });
         frame.build_menu();
         frame.update_title();
@@ -120,12 +182,12 @@ impl EditorFrame {
         if self.save_if_modified().is_err() {
             return;
         }
-        self.textbox.clear();
+        self.editor.clear();
         self.set_path(None);
     }
 
     fn save_if_modified(&self) -> Result<(), ()> {
-        if self.textbox.is_modified() {
+        if self.editor.is_modified() {
             self.save()
         } else {
             Ok(())
@@ -134,7 +196,7 @@ impl EditorFrame {
 
     fn set_path(&self, path: Option<&str>) {
         *self.file.borrow_mut() = path.map(ToOwned::to_owned);
-        self.textbox.set_modified(false);
+        self.editor.reset_modified();
     }
 
     pub fn open_file(&self) {
@@ -144,7 +206,7 @@ impl EditorFrame {
         let file_dialog = wx::FileDialog::builder(Some(&self.base)).build();
         if wx::ID_OK == file_dialog.show_modal() {
             let path = file_dialog.get_path();
-            self.textbox.load_file(&path, wx::TEXT_TYPE_ANY);
+            self.editor.load_from(&path);
             self.set_path(Some(&path));
         }
     }
@@ -173,7 +235,7 @@ impl EditorFrame {
 
     fn save_to(&self, path: &str) -> Result<(), ()> {
         // TODO: Error Handling
-        if self.textbox.save_file(&path, wx::TEXT_TYPE_ANY) {
+        if self.editor.save_to(&path) {
             self.set_path(Some(path));
             Ok(())
         } else {
@@ -186,15 +248,8 @@ impl EditorFrame {
     }
 
     pub fn delete_selection(&self) {
-        let mut from: c_long = 0;
-        let mut to: c_long = 0;
-        self.textbox.get_selection_long(
-            &mut from as *mut c_int as *mut c_void,
-            &mut to as *mut c_int as *mut c_void,
-        );
-        self.textbox.remove(from, to);
+        self.editor.delete_selection();
     }
-
     pub fn open_help(&self) {
         let project_home = "https://github.com/kenz-gelsoft/ClawEditor/";
         wx::launch_default_browser(project_home, 0);
@@ -213,20 +268,21 @@ impl EditorFrame {
         );
     }
 
-    fn on_text_modified(&self) {
-        self.update_title();
-    }
-
     fn update_title(&self) {
         let mut modified = "";
         let mut file = UNTITLED.to_owned();
         if let Some(path) = self.file.borrow().as_ref() {
             file = path.to_owned();
         }
-        if self.textbox.is_modified() {
+        if self.editor.is_modified() {
             modified = "*";
         }
         let title = format!("{}{} - {}", modified, file, APP_NAME);
         self.base.set_title(&title);
+    }
+}
+impl DocumentListener for EditorFrame {
+    fn on_text_modified(&self) {
+        self.update_title();
     }
 }
