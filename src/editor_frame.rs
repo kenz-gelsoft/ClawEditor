@@ -10,7 +10,6 @@ use crate::commands::{self, Command};
 const APP_NAME: &str = "カニツメエディタ";
 const UNTITLED: &str = "無題";
 
-#[cfg(windows)]
 const CW_USEDEFAULT: c_int = c_int::MIN;
 
 #[derive(Clone)]
@@ -189,8 +188,8 @@ impl EditorFrame {
         let mut from: c_long = 0;
         let mut to: c_long = 0;
         self.textbox.get_selection_long(
-            &mut from as *mut c_int as *mut c_void,
-            &mut to as *mut c_int as *mut c_void,
+            &mut from as *mut c_long as *mut c_void,
+            &mut to as *mut c_long as *mut c_void,
         );
         self.textbox.remove(from, to);
     }
@@ -208,7 +207,7 @@ impl EditorFrame {
                 env!("CARGO_PKG_VERSION")
             ),
             APP_NAME,
-            (wx::OK | wx::CENTRE).into(),
+            (wx::OK | wx::CENTRE) as c_int,
             Some(&self.base),
         );
     }
