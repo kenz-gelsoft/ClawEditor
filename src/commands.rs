@@ -1,5 +1,7 @@
 use std::os::raw::c_int;
 
+use wx;
+
 use crate::editor_frame::EditorFrame;
 
 #[derive(Clone, Copy)]
@@ -31,7 +33,7 @@ pub enum Command {
     ViewStatusBar,
     // ヘルプ
     Help,
-    HelpAbout,
+    // wx::ID_ABOUT,
 }
 impl Command {
     pub fn from(v: c_int) -> Option<Self> {
@@ -64,7 +66,7 @@ impl Command {
             ViewStatusBar,
             // ヘルプ
             Help,
-            HelpAbout,
+            // wx::ID_ABOUT,
         ] {
             if v == e.into() {
                 return Some(e);
@@ -116,9 +118,6 @@ pub fn handle_command(frame: &EditorFrame, command: &Command) {
         // 書式
         Command::Help => {
             frame.open_help();
-        }
-        Command::HelpAbout => {
-            frame.show_about();
         }
     }
 }

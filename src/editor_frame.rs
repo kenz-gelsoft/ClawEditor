@@ -47,7 +47,14 @@ impl EditorFrame {
                 if let Some(command) = Command::from(event.get_id()) {
                     commands::handle_command(&frame_copy, &command);
                 } else {
-                    frame_copy.textbox.process_event(event);
+                    match event.get_id() {
+                        wx::ID_ABOUT => {
+                            frame_copy.show_about();
+                        }
+                        _ => {
+                            frame_copy.textbox.process_event(event);
+                        }
+                    }
                 }
             });
 
@@ -109,7 +116,7 @@ impl EditorFrame {
         let help_menu = wx::Menu::new()
             .item(Command::Help, "ヘルプの表示(&H)")
             .separator()
-            .item(Command::HelpAbout, "バージョン情報(&A)");
+            .item(wx::ID_ABOUT, "バージョン情報(&A)");
         menu_bar.append(Some(&help_menu), "ヘルプ(&H)");
 
         self.base.set_menu_bar(Some(&menu_bar));
