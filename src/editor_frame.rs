@@ -11,7 +11,6 @@ use crate::commands::{self, Command};
 const APP_NAME: &str = "カニツメエディタ";
 const UNTITLED: &str = "無題";
 
-#[cfg(windows)]
 const CW_USEDEFAULT: c_int = c_int::MIN;
 
 trait DocumentListener {
@@ -55,8 +54,8 @@ impl<L: DocumentListener + 'static> Document<L> for EditorCtrl<L> {
         let mut from: c_long = 0;
         let mut to: c_long = 0;
         self.ctrl.get_selection_long(
-            &mut from as *mut c_int as *mut c_void,
-            &mut to as *mut c_int as *mut c_void,
+            &mut from as *mut c_long as *mut c_void,
+            &mut to as *mut c_long as *mut c_void,
         );
         self.ctrl.remove(from, to);
     }
@@ -117,7 +116,14 @@ impl EditorFrame {
                 if let Some(command) = Command::from(event.get_id()) {
                     commands::handle_command(&frame_copy, &command);
                 } else {
-                    frame_copy.editor.forward_event(event);
+                    match event.get_id() {
+                        wx::ID_ABOUT => {
+                            frame_copy.show_about();
+                        }
+                        _ => {
+                            frame_copy.editor.forward_event(event);
+                        }
+                    }
                 }
             });
         frame.build_menu();
@@ -172,7 +178,7 @@ impl EditorFrame {
         let help_menu = wx::Menu::new()
             .item(Command::Help, "ヘルプの表示(&H)")
             .separator()
-            .item(Command::HelpAbout, "バージョン情報(&A)");
+            .item(wx::ID_ABOUT, "バージョン情報(&A)");
         menu_bar.append(Some(&help_menu), "ヘルプ(&H)");
 
         self.base.set_menu_bar(Some(&menu_bar));
@@ -263,7 +269,7 @@ impl EditorFrame {
                 env!("CARGO_PKG_VERSION")
             ),
             APP_NAME,
-            (wx::OK | wx::CENTRE).into(),
+            (wx::OK | wx::CENTRE) as c_int,
             Some(&self.base),
         );
     }
