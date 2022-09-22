@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::os::raw::{c_int, c_long, c_void};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 use wx;
 use wx::methods::*;
@@ -12,12 +12,34 @@ const UNTITLED: &str = "無題";
 
 const CW_USEDEFAULT: c_int = c_int::MIN;
 
+#[derive(Clone)]
 enum DocumentEvent {
     TextModified,
 }
 
-trait Observer<E> {
+trait Observer<E: Clone> {
     fn on_notify(&self, event: E);
+}
+
+struct Subject<E: Clone> {
+    observers: Vec<Weak<dyn Observer<E>>>,
+}
+impl<E: Clone> Subject<E> {
+    fn new() -> Self {
+        Self {
+            observers: Vec::new(),
+        }
+    }
+    fn add_observer(&mut self, observer: Rc<dyn Observer<E>>) {
+        self.observers.push(Rc::downgrade(&observer));
+    }
+    fn notify_event(&self, event: E) {
+        for observer in self.observers.iter() {
+            if let Some(observer) = observer.upgrade() {
+                observer.on_notify(event.clone());
+            }
+        }
+    }
 }
 
 trait Document {
@@ -26,20 +48,30 @@ trait Document {
     fn delete_selection(&self);
     fn is_modified(&self) -> bool;
     fn reset_modified(&self);
-    fn set_listener(&self, listener: Rc<dyn Observer<DocumentEvent>>);
     fn load_from(&self, file_path: &str);
     fn save_to(&self, file_path: &str) -> bool;
 }
 
 struct EditorCtrl {
     ctrl: wx::TextCtrl,
+    events: Rc<RefCell<Subject<DocumentEvent>>>,
 }
 impl EditorCtrl {
     fn new<W: WindowMethods>(parent: &W) -> Self {
         let textbox = wx::TextCtrl::builder(Some(parent))
             .style(wx::TE_MULTILINE.into())
             .build();
-        Self { ctrl: textbox }
+        let events = Rc::new(RefCell::new(Subject::new()));
+        let weak_events = Rc::downgrade(&events);
+        textbox.bind(wx::RustEvent::Text, move |_: &wx::CommandEvent| {
+            if let Some(events) = weak_events.upgrade() {
+                events.borrow().notify_event(DocumentEvent::TextModified);
+            }
+        });
+        Self {
+            ctrl: textbox,
+            events,
+        }
     }
 }
 impl Document for EditorCtrl {
@@ -64,15 +96,6 @@ impl Document for EditorCtrl {
     fn reset_modified(&self) {
         self.ctrl.set_modified(false);
     }
-    fn set_listener(&self, listener: Rc<dyn Observer<DocumentEvent>>) {
-        let weak = Rc::downgrade(&listener);
-        self.ctrl
-            .bind(wx::RustEvent::Text, move |_: &wx::CommandEvent| {
-                if let Some(listener) = weak.upgrade() {
-                    listener.on_notify(DocumentEvent::TextModified);
-                }
-            });
-    }
     fn load_from(&self, file_path: &str) {
         self.ctrl.load_file(file_path, wx::TEXT_TYPE_ANY);
     }
@@ -81,10 +104,9 @@ impl Document for EditorCtrl {
     }
 }
 
-#[derive(Clone)]
 pub struct EditorFrame {
     base: wx::Frame,
-    editor: Rc<EditorCtrl>,
+    editor: EditorCtrl,
     // TODO: avoid interior mutability
     file: Rc<RefCell<Option<String>>>,
 }
@@ -101,13 +123,13 @@ impl EditorFrame {
         let frame = wx::Frame::builder(wx::Window::none())
             .size(default_size)
             .build();
-        let editor = Rc::new(EditorCtrl::new(&frame));
+        let editor = EditorCtrl::new(&frame);
         let frame = Rc::new(EditorFrame {
             base: frame,
-            editor: editor.clone(),
+            editor,
             file: Rc::new(RefCell::new(None)),
         });
-        editor.set_listener(frame.clone());
+        frame.editor.events.borrow_mut().add_observer(frame.clone());
         let frame_copy = frame.clone();
         frame
             .base
