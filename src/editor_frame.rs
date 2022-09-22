@@ -5,7 +5,7 @@ use std::rc::Rc;
 use wx;
 use wx::methods::*;
 
-use crate::commands::{self, Command};
+use crate::commands::{Command, CommandHandler};
 use crate::observer::{Observer, Subject};
 
 const APP_NAME: &str = "カニツメエディタ";
@@ -111,7 +111,7 @@ impl EditorFrame {
             .base
             .bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
                 if let Some(command) = Command::from(event.get_id()) {
-                    commands::handle_command(&frame_copy, &command);
+                    frame_copy.handle_command(&command);
                 } else {
                     match event.get_id() {
                         wx::ID_ABOUT => {
@@ -282,6 +282,48 @@ impl EditorFrame {
         }
         let title = format!("{}{} - {}", modified, file, APP_NAME);
         self.base.set_title(&title);
+    }
+}
+impl CommandHandler<Command> for EditorFrame {
+    fn handle_command(&self, command: &Command) {
+        match command {
+            // ファイル
+            Command::FileNew => {
+                self.new_file();
+            }
+            Command::FileNewWindow => todo!(),
+            Command::FileOpen => {
+                self.open_file();
+            }
+            Command::FileSave => {
+                _ = self.save();
+            }
+            Command::FileSaveAs => {
+                _ = self.save_as();
+            }
+            Command::FileClose => {
+                self.close();
+            }
+            // 編集
+            Command::EditDelete => {
+                self.delete_selection();
+            }
+            Command::EditFind => todo!(),
+            Command::EditFindNext => todo!(),
+            Command::EditFindPrevious => todo!(),
+            Command::EditReplace => todo!(),
+            Command::EditGo => todo!(),
+            Command::EditDate => todo!(),
+            // 書式
+            Command::FormatWordWrap => todo!(),
+            Command::FormatFont => todo!(),
+            // 表示
+            Command::ViewStatusBar => todo!(),
+            // 書式
+            Command::Help => {
+                self.open_help();
+            }
+        }
     }
 }
 impl Observer<DocumentEvent> for EditorFrame {
