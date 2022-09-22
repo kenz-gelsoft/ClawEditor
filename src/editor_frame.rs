@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::marker::PhantomData;
 use std::os::raw::{c_int, c_long, c_void};
 use std::rc::Rc;
 
@@ -17,33 +16,31 @@ trait DocumentListener {
     fn on_text_modified(&self);
 }
 
-trait Document<L: DocumentListener> {
+trait Document {
     fn forward_event(&self, event: &wx::CommandEvent);
     fn clear(&self);
     fn delete_selection(&self);
     fn is_modified(&self) -> bool;
     fn reset_modified(&self);
-    fn set_listener(&self, listener: &Rc<L>);
+    fn set_listener(&self, listener: Rc<dyn DocumentListener>);
     fn load_from(&self, file_path: &str);
     fn save_to(&self, file_path: &str) -> bool;
 }
 
-struct EditorCtrl<L: DocumentListener> {
+struct EditorCtrl {
     ctrl: wx::TextCtrl,
-    listener: PhantomData<L>,
 }
-impl<L: DocumentListener> EditorCtrl<L> {
+impl EditorCtrl {
     fn new<W: WindowMethods>(parent: &W) -> Self {
         let textbox = wx::TextCtrl::builder(Some(parent))
             .style(wx::TE_MULTILINE.into())
             .build();
         Self {
             ctrl: textbox,
-            listener: PhantomData,
         }
     }
 }
-impl<L: DocumentListener + 'static> Document<L> for EditorCtrl<L> {
+impl Document for EditorCtrl {
     fn forward_event(&self, event: &wx::CommandEvent) {
         self.ctrl.process_event(event);
     }
@@ -65,7 +62,7 @@ impl<L: DocumentListener + 'static> Document<L> for EditorCtrl<L> {
     fn reset_modified(&self) {
         self.ctrl.set_modified(false);
     }
-    fn set_listener(&self, listener: &Rc<L>) {
+    fn set_listener(&self, listener: Rc<dyn DocumentListener>) {
         let weak = Rc::downgrade(&listener);
         self.ctrl
             .bind(wx::RustEvent::Text, move |_: &wx::CommandEvent| {
@@ -85,7 +82,7 @@ impl<L: DocumentListener + 'static> Document<L> for EditorCtrl<L> {
 #[derive(Clone)]
 pub struct EditorFrame {
     base: wx::Frame,
-    editor: Rc<EditorCtrl<EditorFrame>>,
+    editor: Rc<EditorCtrl>,
     // TODO: avoid interior mutability
     file: Rc<RefCell<Option<String>>>,
 }
@@ -108,7 +105,7 @@ impl EditorFrame {
             editor: editor.clone(),
             file: Rc::new(RefCell::new(None)),
         });
-        editor.set_listener(&frame);
+        editor.set_listener(frame.clone());
         let frame_copy = frame.clone();
         frame
             .base
