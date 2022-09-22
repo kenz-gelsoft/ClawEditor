@@ -12,8 +12,12 @@ const UNTITLED: &str = "無題";
 
 const CW_USEDEFAULT: c_int = c_int::MIN;
 
-trait DocumentListener {
-    fn on_text_modified(&self);
+enum DocumentEvent {
+    TextModified,
+}
+
+trait Observer<E> {
+    fn on_notify(&self, event: E);
 }
 
 trait Document {
@@ -22,7 +26,7 @@ trait Document {
     fn delete_selection(&self);
     fn is_modified(&self) -> bool;
     fn reset_modified(&self);
-    fn set_listener(&self, listener: Rc<dyn DocumentListener>);
+    fn set_listener(&self, listener: Rc<dyn Observer<DocumentEvent>>);
     fn load_from(&self, file_path: &str);
     fn save_to(&self, file_path: &str) -> bool;
 }
@@ -35,9 +39,7 @@ impl EditorCtrl {
         let textbox = wx::TextCtrl::builder(Some(parent))
             .style(wx::TE_MULTILINE.into())
             .build();
-        Self {
-            ctrl: textbox,
-        }
+        Self { ctrl: textbox }
     }
 }
 impl Document for EditorCtrl {
@@ -62,12 +64,12 @@ impl Document for EditorCtrl {
     fn reset_modified(&self) {
         self.ctrl.set_modified(false);
     }
-    fn set_listener(&self, listener: Rc<dyn DocumentListener>) {
+    fn set_listener(&self, listener: Rc<dyn Observer<DocumentEvent>>) {
         let weak = Rc::downgrade(&listener);
         self.ctrl
             .bind(wx::RustEvent::Text, move |_: &wx::CommandEvent| {
                 if let Some(listener) = weak.upgrade() {
-                    listener.on_text_modified();
+                    listener.on_notify(DocumentEvent::TextModified);
                 }
             });
     }
@@ -284,8 +286,10 @@ impl EditorFrame {
         self.base.set_title(&title);
     }
 }
-impl DocumentListener for EditorFrame {
-    fn on_text_modified(&self) {
-        self.update_title();
+impl Observer<DocumentEvent> for EditorFrame {
+    fn on_notify(&self, event: DocumentEvent) {
+        match event {
+            DocumentEvent::TextModified => self.update_title(),
+        }
     }
 }
