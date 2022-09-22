@@ -5,7 +5,7 @@ use std::rc::Rc;
 use wx;
 use wx::methods::*;
 
-use crate::commands::{Command, CommandHandler};
+use crate::commands::{Command, CommandHandler, EditorCommand};
 use crate::observer::{Observer, Subject};
 
 const APP_NAME: &str = "カニツメエディタ";
@@ -19,9 +19,7 @@ enum DocumentEvent {
 }
 
 trait Document {
-    fn forward_event(&self, event: &wx::CommandEvent);
     fn clear(&self);
-    fn delete_selection(&self);
     fn is_modified(&self) -> bool;
     fn reset_modified(&self);
     fn load_from(&self, file_path: &str);
@@ -49,14 +47,6 @@ impl EditorCtrl {
             events,
         }
     }
-}
-impl Document for EditorCtrl {
-    fn forward_event(&self, event: &wx::CommandEvent) {
-        self.ctrl.process_event(event);
-    }
-    fn clear(&self) {
-        self.ctrl.clear();
-    }
     fn delete_selection(&self) {
         let mut from: c_long = 0;
         let mut to: c_long = 0;
@@ -65,6 +55,26 @@ impl Document for EditorCtrl {
             &mut to as *mut c_long as *mut c_void,
         );
         self.ctrl.remove(from, to);
+    }
+}
+impl<'a> CommandHandler<EditorCommand<'a>> for EditorCtrl {
+    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
+        match editor_command {
+            EditorCommand::Command(command) => match command {
+                Command::EditDelete => {
+                    self.delete_selection();
+                }
+                _ => (),
+            },
+            EditorCommand::StandardEvents(event) => {
+                self.ctrl.process_event(*event);
+            }
+        }
+    }
+}
+impl Document for EditorCtrl {
+    fn clear(&self) {
+        self.ctrl.clear();
     }
     fn is_modified(&self) -> bool {
         self.ctrl.is_modified()
@@ -110,18 +120,10 @@ impl EditorFrame {
         frame
             .base
             .bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
-                if let Some(command) = Command::from(event.get_id()) {
-                    frame_copy.handle_command(&command);
-                } else {
-                    match event.get_id() {
-                        wx::ID_ABOUT => {
-                            frame_copy.show_about();
-                        }
-                        _ => {
-                            frame_copy.editor.forward_event(event);
-                        }
-                    }
-                }
+                let command = Command::from(event.get_id())
+                    .map(|command| EditorCommand::Command(command))
+                    .unwrap_or(EditorCommand::StandardEvents(event));
+                frame_copy.handle_command(&command);
             });
         frame.build_menu();
         frame.update_title();
@@ -250,9 +252,6 @@ impl EditorFrame {
         self.base.close(false);
     }
 
-    pub fn delete_selection(&self) {
-        self.editor.delete_selection();
-    }
     pub fn open_help(&self) {
         let project_home = "https://github.com/kenz-gelsoft/ClawEditor/";
         wx::launch_default_browser(project_home, 0);
@@ -284,45 +283,55 @@ impl EditorFrame {
         self.base.set_title(&title);
     }
 }
-impl CommandHandler<Command> for EditorFrame {
-    fn handle_command(&self, command: &Command) {
-        match command {
-            // ファイル
-            Command::FileNew => {
-                self.new_file();
-            }
-            Command::FileNewWindow => todo!(),
-            Command::FileOpen => {
-                self.open_file();
-            }
-            Command::FileSave => {
-                _ = self.save();
-            }
-            Command::FileSaveAs => {
-                _ = self.save_as();
-            }
-            Command::FileClose => {
-                self.close();
-            }
-            // 編集
-            Command::EditDelete => {
-                self.delete_selection();
-            }
-            Command::EditFind => todo!(),
-            Command::EditFindNext => todo!(),
-            Command::EditFindPrevious => todo!(),
-            Command::EditReplace => todo!(),
-            Command::EditGo => todo!(),
-            Command::EditDate => todo!(),
-            // 書式
-            Command::FormatWordWrap => todo!(),
-            Command::FormatFont => todo!(),
-            // 表示
-            Command::ViewStatusBar => todo!(),
-            // 書式
-            Command::Help => {
-                self.open_help();
-            }
+impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
+    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
+        match editor_command {
+            EditorCommand::Command(command) => match &command {
+                // ファイル
+                Command::FileNew => {
+                    self.new_file();
+                }
+                Command::FileNewWindow => todo!(),
+                Command::FileOpen => {
+                    self.open_file();
+                }
+                Command::FileSave => {
+                    _ = self.save();
+                }
+                Command::FileSaveAs => {
+                    _ = self.save_as();
+                }
+                Command::FileClose => {
+                    self.close();
+                }
+                // 編集
+                Command::EditFind => todo!(),
+                Command::EditFindNext => todo!(),
+                Command::EditFindPrevious => todo!(),
+                Command::EditReplace => todo!(),
+                Command::EditGo => todo!(),
+                Command::EditDate => todo!(),
+                // 書式
+                Command::FormatWordWrap => todo!(),
+                Command::FormatFont => todo!(),
+                // 表示
+                Command::ViewStatusBar => todo!(),
+                // 書式
+                Command::Help => {
+                    self.open_help();
+                }
+                Command::EditDelete => {
+                    self.editor.handle_command(editor_command);
+                }
+            },
+            EditorCommand::StandardEvents(event) => match event.get_id() {
+                wx::ID_ABOUT => {
+                    self.show_about();
+                }
+                _ => {
+                    self.editor.handle_command(editor_command);
+                }
+            },
         }
     }
 }

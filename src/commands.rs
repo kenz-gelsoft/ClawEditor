@@ -2,8 +2,13 @@ use std::os::raw::c_int;
 
 use wx;
 
-pub trait CommandHandler<C: Clone> {
+pub trait CommandHandler<C> {
     fn handle_command(&self, command: &C);
+}
+
+pub enum EditorCommand<'a> {
+    Command(Command),
+    StandardEvents(&'a wx::CommandEvent),
 }
 
 #[derive(Clone, Copy)]
