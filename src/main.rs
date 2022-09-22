@@ -7,6 +7,8 @@ mod commands;
 mod editor_frame;
 use editor_frame::EditorFrame;
 
+mod observer;
+
 fn main() {
     wx::App::run(|_| {
         let frame = EditorFrame::new();

@@ -1,11 +1,12 @@
 use std::cell::RefCell;
 use std::os::raw::{c_int, c_long, c_void};
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use wx;
 use wx::methods::*;
 
 use crate::commands::{self, Command};
+use crate::observer::{Observer, Subject};
 
 const APP_NAME: &str = "カニツメエディタ";
 const UNTITLED: &str = "無題";
@@ -15,31 +16,6 @@ const CW_USEDEFAULT: c_int = c_int::MIN;
 #[derive(Clone)]
 enum DocumentEvent {
     TextModified,
-}
-
-trait Observer<E: Clone> {
-    fn on_notify(&self, event: E);
-}
-
-struct Subject<E: Clone> {
-    observers: Vec<Weak<dyn Observer<E>>>,
-}
-impl<E: Clone> Subject<E> {
-    fn new() -> Self {
-        Self {
-            observers: Vec::new(),
-        }
-    }
-    fn add_observer(&mut self, observer: Rc<dyn Observer<E>>) {
-        self.observers.push(Rc::downgrade(&observer));
-    }
-    fn notify_event(&self, event: E) {
-        for observer in self.observers.iter() {
-            if let Some(observer) = observer.upgrade() {
-                observer.on_notify(event.clone());
-            }
-        }
-    }
 }
 
 trait Document {
