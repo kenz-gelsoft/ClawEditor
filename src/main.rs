@@ -4,6 +4,7 @@ use wx;
 
 mod commands;
 
+mod editor_ctrl;
 mod editor_frame;
 use editor_frame::EditorFrame;
 
