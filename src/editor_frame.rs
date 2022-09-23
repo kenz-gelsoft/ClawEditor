@@ -21,7 +21,7 @@ pub struct EditorFrame {
     file: Rc<RefCell<Option<String>>>,
 }
 impl EditorFrame {
-    pub fn new() -> Rc<Self> {
+    pub fn new() -> Rc<RefCell<Self>> {
         let default_size = if cfg!(windows) {
             // XXX: Windows プログラムとして自然なデフォルトサイズにするため、
             // CW_USEDEFAULT を指定しています。
@@ -34,27 +34,30 @@ impl EditorFrame {
             .size(default_size)
             .build();
         let editor = EditorCtrl::new(&frame);
-        let frame = Rc::new(EditorFrame {
+        let frame = Rc::new(RefCell::new(EditorFrame {
             base: frame,
             editor,
             file: Rc::new(RefCell::new(None)),
-        });
+        }));
+        let frame_copy = frame.clone();
         frame
+            .borrow()
             .editor
             .events()
             .borrow_mut()
-            .add_observer(frame.clone());
+            .add_observer(frame_copy);
         let frame_copy = frame.clone();
         frame
+            .borrow()
             .base
             .bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
                 let command = Command::from(event.get_id())
                     .map(|command| EditorCommand::Command(command))
                     .unwrap_or(EditorCommand::StandardEvents(event));
-                frame_copy.handle_command(&command);
+                frame_copy.borrow_mut().handle_command(&command);
             });
-        frame.build_menu();
-        frame.update_title();
+        frame.borrow().build_menu();
+        frame.borrow().update_title();
 
         frame
     }
@@ -111,7 +114,7 @@ impl EditorFrame {
         self.base.set_menu_bar(Some(&menu_bar));
     }
 
-    pub fn new_file(&self) {
+    pub fn new_file(&mut self) {
         if self.save_if_modified().is_err() {
             return;
         }
@@ -119,7 +122,7 @@ impl EditorFrame {
         self.set_path(None);
     }
 
-    fn save_if_modified(&self) -> Result<(), ()> {
+    fn save_if_modified(&mut self) -> Result<(), ()> {
         if self.editor.is_modified() {
             self.save()
         } else {
@@ -127,12 +130,12 @@ impl EditorFrame {
         }
     }
 
-    fn set_path(&self, path: Option<&str>) {
+    fn set_path(&mut self, path: Option<&str>) {
         *self.file.borrow_mut() = path.map(ToOwned::to_owned);
         self.editor.reset_modified();
     }
 
-    pub fn open_file(&self) {
+    pub fn open_file(&mut self) {
         if self.save_if_modified().is_err() {
             return;
         }
@@ -144,7 +147,7 @@ impl EditorFrame {
         }
     }
 
-    pub fn save(&self) -> Result<(), ()> {
+    pub fn save(&mut self) -> Result<(), ()> {
         // if let 式とまとめると save_to() 内で borrow_mut() するため
         // ランタイムエラーになるため、事前にコピーしている
         let path = self.file.borrow().as_ref().map(ToOwned::to_owned);
@@ -155,7 +158,7 @@ impl EditorFrame {
         }
     }
 
-    pub fn save_as(&self) -> Result<(), ()> {
+    pub fn save_as(&mut self) -> Result<(), ()> {
         let file_dialog = wx::FileDialog::builder(Some(&self.base))
             .style(wx::FC_SAVE.into())
             .build();
@@ -166,7 +169,7 @@ impl EditorFrame {
         }
     }
 
-    fn save_to(&self, path: &str) -> Result<(), ()> {
+    fn save_to(&mut self, path: &str) -> Result<(), ()> {
         // TODO: Error Handling
         if self.editor.save_to(&path) {
             self.set_path(Some(path));
@@ -212,7 +215,7 @@ impl EditorFrame {
     }
 }
 impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
-    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
+    fn handle_command(&mut self, editor_command: &EditorCommand<'a>) {
         match editor_command {
             EditorCommand::Command(command) => match &command {
                 // ファイル

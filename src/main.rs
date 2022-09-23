@@ -13,6 +13,6 @@ mod observer;
 fn main() {
     wx::App::run(|_| {
         let frame = EditorFrame::new();
-        frame.show();
+        frame.borrow().show();
     });
 }

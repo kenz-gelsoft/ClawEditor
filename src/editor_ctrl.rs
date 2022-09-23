@@ -21,25 +21,16 @@ trait UnsavedChangeUI {
     fn get_path_to_save<CB: FnMut(Option<String>)>(&mut self, callback: CB);
 }
 
-// 後で実際の Document を使うようにする
-trait DummyDoc {
-    // 変更フラグ
-    fn is_modified(&self) -> bool;
-    fn set_modified(&mut self, modified: bool);
-
-    fn save_to(&mut self, path: String) -> bool;
-}
-
 // TODO: future 的なインターフェイス
-fn save_unsaved_change<D: DummyDoc, U: UnsavedChangeUI, CB: FnMut(bool)>(
+fn save_unsaved_change<D: Document, U: UnsavedChangeUI, CB: Fn(bool)>(
     mut doc: D,
     mut ui: U,
-    mut callback: CB,
+    callback: CB,
 ) {
     ui.get_path_to_save(move |path| {
         if let Some(path) = path {
             // TODO: エラーを返す
-            doc.save_to(path);
+            doc.save_to(&path);
         }
         callback(!doc.is_modified());
     });
@@ -57,20 +48,32 @@ mod test {
     impl MockDoc {
         fn new() -> Self {
             Self {
-                modified: false,
+                modified: true,
                 save_will_fail: false,
             }
         }
     }
-    impl DummyDoc for MockDoc {
+    impl Document for MockDoc {
+        fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>> {
+            todo!()
+        }
+        fn clear(&self) {
+            todo!()
+        }
+
         fn is_modified(&self) -> bool {
             self.modified
         }
-        fn set_modified(&mut self, modified: bool) {
-            self.modified = modified
+
+        fn reset_modified(&mut self) {
+            self.modified = false;
         }
 
-        fn save_to(&mut self, _: String) -> bool {
+        fn load_from(&self, file_path: &str) {
+            todo!()
+        }
+
+        fn save_to(&mut self, file_path: &str) -> bool {
             if self.save_will_fail {
                 return false;
             }
@@ -102,8 +105,7 @@ mod test {
     #[test]
     fn modified_doc_will_be_unmodified_after_save() {
         // Given: ドキュメントの変更フラグが立っている状態から
-        let mut doc = MockDoc::new();
-        doc.set_modified(true);
+        let doc = MockDoc::new();
         assert!(doc.is_modified());
 
         let save_dlg = MockSaveDialog::new();
@@ -117,8 +119,7 @@ mod test {
     #[test]
     fn modified_doc_keeps_modified_after_save_cancelled() {
         // Given: ドキュメントの変更フラグが立っている状態から
-        let mut doc = MockDoc::new();
-        doc.set_modified(true);
+        let doc = MockDoc::new();
         assert!(doc.is_modified());
 
         let mut save_dlg = MockSaveDialog::new();
@@ -134,7 +135,6 @@ mod test {
     fn modified_doc_keeps_modified_after_save_failed() {
         // Given: ドキュメントの変更フラグが立っている状態から
         let mut doc = MockDoc::new();
-        doc.set_modified(true);
         assert!(doc.is_modified());
 
         let save_dlg = MockSaveDialog::new();
@@ -151,9 +151,9 @@ pub trait Document {
     fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>>;
     fn clear(&self);
     fn is_modified(&self) -> bool;
-    fn reset_modified(&self);
+    fn reset_modified(&mut self);
     fn load_from(&self, file_path: &str);
-    fn save_to(&self, file_path: &str) -> bool;
+    fn save_to(&mut self, file_path: &str) -> bool;
 }
 
 pub struct EditorCtrl {
@@ -188,7 +188,7 @@ impl EditorCtrl {
     }
 }
 impl<'a> CommandHandler<EditorCommand<'a>> for EditorCtrl {
-    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
+    fn handle_command(&mut self, editor_command: &EditorCommand<'a>) {
         match editor_command {
             EditorCommand::Command(command) => match command {
                 Command::EditDelete => {
@@ -212,13 +212,13 @@ impl Document for EditorCtrl {
     fn is_modified(&self) -> bool {
         self.ctrl.is_modified()
     }
-    fn reset_modified(&self) {
+    fn reset_modified(&mut self) {
         self.ctrl.set_modified(false);
     }
     fn load_from(&self, file_path: &str) {
         self.ctrl.load_file(file_path, wx::TEXT_TYPE_ANY);
     }
-    fn save_to(&self, file_path: &str) -> bool {
+    fn save_to(&mut self, file_path: &str) -> bool {
         self.ctrl.save_file(file_path, wx::TEXT_TYPE_ANY)
     }
 }
