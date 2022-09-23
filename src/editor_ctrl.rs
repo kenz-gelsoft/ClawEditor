@@ -7,7 +7,13 @@ use wx::methods::*;
 use crate::commands::{Command, CommandHandler, EditorCommand};
 use crate::observer::Subject;
 
+#[derive(Clone)]
+pub enum DocumentEvent {
+    TextModified,
+}
+
 pub trait Document {
+    fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>>;
     fn clear(&self);
     fn is_modified(&self) -> bool;
     fn reset_modified(&self);
@@ -15,14 +21,9 @@ pub trait Document {
     fn save_to(&self, file_path: &str) -> bool;
 }
 
-#[derive(Clone)]
-pub enum DocumentEvent {
-    TextModified,
-}
-
 pub struct EditorCtrl {
     ctrl: wx::TextCtrl,
-    pub events: Rc<RefCell<Subject<DocumentEvent>>>,
+    events: Rc<RefCell<Subject<DocumentEvent>>>,
 }
 impl EditorCtrl {
     pub fn new<W: WindowMethods>(parent: &W) -> Self {
@@ -67,6 +68,9 @@ impl<'a> CommandHandler<EditorCommand<'a>> for EditorCtrl {
     }
 }
 impl Document for EditorCtrl {
+    fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>> {
+        self.events.clone()
+    }
     fn clear(&self) {
         self.ctrl.clear();
     }

@@ -39,7 +39,11 @@ impl EditorFrame {
             editor,
             file: Rc::new(RefCell::new(None)),
         });
-        frame.editor.events.borrow_mut().add_observer(frame.clone());
+        frame
+            .editor
+            .events()
+            .borrow_mut()
+            .add_observer(frame.clone());
         let frame_copy = frame.clone();
         frame
             .base
