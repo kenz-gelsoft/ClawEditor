@@ -30,6 +30,21 @@ trait DummyDoc {
     fn save_to(&mut self, path: String) -> bool;
 }
 
+// TODO: future 的なインターフェイス
+fn save_unsaved_change<D: DummyDoc, U: UnsavedChangeUI, CB: FnMut(bool)>(
+    mut doc: D,
+    mut ui: U,
+    mut callback: CB,
+) {
+    ui.get_path_to_save(move |path| {
+        if let Some(path) = path {
+            // TODO: エラーを返す
+            doc.save_to(path);
+        }
+        callback(!doc.is_modified());
+    });
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -91,13 +106,11 @@ mod test {
         doc.set_modified(true);
         assert!(doc.is_modified());
 
-        let mut save_dlg = MockSaveDialog::new();
-        save_dlg.get_path_to_save(move |path| {
-            assert_ne!(path, None);
-            // When: 保存に成功したら
-            assert!(doc.save_to(path.unwrap()));
+        let save_dlg = MockSaveDialog::new();
+        // When: 保存に成功したら
+        save_unsaved_change(doc, save_dlg, |result| {
             // Then: 変更フラグが倒れている
-            assert!(!doc.is_modified());
+            assert!(result);
         });
     }
 
@@ -111,10 +124,9 @@ mod test {
         let mut save_dlg = MockSaveDialog::new();
         // When: 保存がキャンセルされたら
         save_dlg.will_be_cancelled = true;
-        save_dlg.get_path_to_save(move |path| {
-            assert_eq!(path, None);
+        save_unsaved_change(doc, save_dlg, |result| {
             // Then: 変更フラグは立ったまま
-            assert!(doc.is_modified());
+            assert!(!result);
         });
     }
 
@@ -125,14 +137,12 @@ mod test {
         doc.set_modified(true);
         assert!(doc.is_modified());
 
-        let mut save_dlg = MockSaveDialog::new();
-        save_dlg.get_path_to_save(move |path| {
-            assert_ne!(path, None);
-            // When: 保存に失敗したら
-            doc.save_will_fail = true;
-            assert!(!doc.save_to(path.unwrap()));
+        let save_dlg = MockSaveDialog::new();
+        // When: 保存に失敗したら
+        doc.save_will_fail = true;
+        save_unsaved_change(doc, save_dlg, |result| {
             // Then: 変更フラグは立ったまま
-            assert!(doc.is_modified());
+            assert!(!result);
         });
     }
 }
