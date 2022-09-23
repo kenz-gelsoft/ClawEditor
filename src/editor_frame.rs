@@ -1,26 +1,27 @@
 use std::cell::RefCell;
-use std::os::raw::{c_int, c_long, c_void};
+use std::os::raw::c_int;
 use std::rc::Rc;
 
 use wx;
 use wx::methods::*;
 
-use crate::commands::{self, Command};
+use crate::commands::{Command, CommandHandler, EditorCommand};
+use crate::editor_ctrl::{Document, DocumentEvent, EditorCtrl};
+use crate::observer::Observer;
 
 const APP_NAME: &str = "カニツメエディタ";
 const UNTITLED: &str = "無題";
 
 const CW_USEDEFAULT: c_int = c_int::MIN;
 
-#[derive(Clone)]
 pub struct EditorFrame {
     base: wx::Frame,
-    textbox: wx::TextCtrl,
+    editor: EditorCtrl,
     // TODO: avoid interior mutability
     file: Rc<RefCell<Option<String>>>,
 }
 impl EditorFrame {
-    pub fn new() -> Self {
+    pub fn new() -> Rc<Self> {
         let default_size = if cfg!(windows) {
             // XXX: Windows プログラムとして自然なデフォルトサイズにするため、
             // CW_USEDEFAULT を指定しています。
@@ -32,37 +33,25 @@ impl EditorFrame {
         let frame = wx::Frame::builder(wx::Window::none())
             .size(default_size)
             .build();
-        let textbox = wx::TextCtrl::builder(Some(&frame))
-            .style(wx::TE_MULTILINE.into())
-            .build();
-        let frame = EditorFrame {
+        let editor = EditorCtrl::new(&frame);
+        let frame = Rc::new(EditorFrame {
             base: frame,
-            textbox,
+            editor,
             file: Rc::new(RefCell::new(None)),
-        };
+        });
+        frame
+            .editor
+            .events()
+            .borrow_mut()
+            .add_observer(frame.clone());
         let frame_copy = frame.clone();
         frame
             .base
             .bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
-                if let Some(command) = Command::from(event.get_id()) {
-                    commands::handle_command(&frame_copy, &command);
-                } else {
-                    match event.get_id() {
-                        wx::ID_ABOUT => {
-                            frame_copy.show_about();
-                        }
-                        _ => {
-                            frame_copy.textbox.process_event(event);
-                        }
-                    }
-                }
-            });
-
-        let frame_copy = frame.clone();
-        frame
-            .base
-            .bind(wx::RustEvent::Text, move |_: &wx::CommandEvent| {
-                frame_copy.on_text_modified();
+                let command = Command::from(event.get_id())
+                    .map(|command| EditorCommand::Command(command))
+                    .unwrap_or(EditorCommand::StandardEvents(event));
+                frame_copy.handle_command(&command);
             });
         frame.build_menu();
         frame.update_title();
@@ -126,12 +115,12 @@ impl EditorFrame {
         if self.save_if_modified().is_err() {
             return;
         }
-        self.textbox.clear();
+        self.editor.clear();
         self.set_path(None);
     }
 
     fn save_if_modified(&self) -> Result<(), ()> {
-        if self.textbox.is_modified() {
+        if self.editor.is_modified() {
             self.save()
         } else {
             Ok(())
@@ -140,7 +129,7 @@ impl EditorFrame {
 
     fn set_path(&self, path: Option<&str>) {
         *self.file.borrow_mut() = path.map(ToOwned::to_owned);
-        self.textbox.set_modified(false);
+        self.editor.reset_modified();
     }
 
     pub fn open_file(&self) {
@@ -150,7 +139,7 @@ impl EditorFrame {
         let file_dialog = wx::FileDialog::builder(Some(&self.base)).build();
         if wx::ID_OK == file_dialog.show_modal() {
             let path = file_dialog.get_path();
-            self.textbox.load_file(&path, wx::TEXT_TYPE_ANY);
+            self.editor.load_from(&path);
             self.set_path(Some(&path));
         }
     }
@@ -179,7 +168,7 @@ impl EditorFrame {
 
     fn save_to(&self, path: &str) -> Result<(), ()> {
         // TODO: Error Handling
-        if self.textbox.save_file(&path, wx::TEXT_TYPE_ANY) {
+        if self.editor.save_to(&path) {
             self.set_path(Some(path));
             Ok(())
         } else {
@@ -189,16 +178,6 @@ impl EditorFrame {
 
     pub fn close(&self) {
         self.base.close(false);
-    }
-
-    pub fn delete_selection(&self) {
-        let mut from: c_long = 0;
-        let mut to: c_long = 0;
-        self.textbox.get_selection_long(
-            &mut from as *mut c_long as *mut c_void,
-            &mut to as *mut c_long as *mut c_void,
-        );
-        self.textbox.remove(from, to);
     }
 
     pub fn open_help(&self) {
@@ -219,20 +198,75 @@ impl EditorFrame {
         );
     }
 
-    fn on_text_modified(&self) {
-        self.update_title();
-    }
-
     fn update_title(&self) {
         let mut modified = "";
         let mut file = UNTITLED.to_owned();
         if let Some(path) = self.file.borrow().as_ref() {
             file = path.to_owned();
         }
-        if self.textbox.is_modified() {
+        if self.editor.is_modified() {
             modified = "*";
         }
         let title = format!("{}{} - {}", modified, file, APP_NAME);
         self.base.set_title(&title);
+    }
+}
+impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
+    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
+        match editor_command {
+            EditorCommand::Command(command) => match &command {
+                // ファイル
+                Command::FileNew => {
+                    self.new_file();
+                }
+                Command::FileNewWindow => todo!(),
+                Command::FileOpen => {
+                    self.open_file();
+                }
+                Command::FileSave => {
+                    _ = self.save();
+                }
+                Command::FileSaveAs => {
+                    _ = self.save_as();
+                }
+                Command::FileClose => {
+                    self.close();
+                }
+                // 編集
+                Command::EditFind => todo!(),
+                Command::EditFindNext => todo!(),
+                Command::EditFindPrevious => todo!(),
+                Command::EditReplace => todo!(),
+                Command::EditGo => todo!(),
+                Command::EditDate => todo!(),
+                // 書式
+                Command::FormatWordWrap => todo!(),
+                Command::FormatFont => todo!(),
+                // 表示
+                Command::ViewStatusBar => todo!(),
+                // 書式
+                Command::Help => {
+                    self.open_help();
+                }
+                Command::EditDelete => {
+                    self.editor.handle_command(editor_command);
+                }
+            },
+            EditorCommand::StandardEvents(event) => match event.get_id() {
+                wx::ID_ABOUT => {
+                    self.show_about();
+                }
+                _ => {
+                    self.editor.handle_command(editor_command);
+                }
+            },
+        }
+    }
+}
+impl Observer<DocumentEvent> for EditorFrame {
+    fn on_notify(&self, event: DocumentEvent) {
+        match event {
+            DocumentEvent::TextModified => self.update_title(),
+        }
     }
 }

@@ -4,8 +4,11 @@ use wx;
 
 mod commands;
 
+mod editor_ctrl;
 mod editor_frame;
 use editor_frame::EditorFrame;
+
+mod observer;
 
 fn main() {
     wx::App::run(|_| {
