@@ -266,10 +266,10 @@ impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
         }
     }
 }
-impl Observer<DocumentEvent> for EditorFrame {
+impl Observer<DocumentEvent> for RefCell<EditorFrame> {
     fn on_notify(&self, event: DocumentEvent) {
         match event {
-            DocumentEvent::TextModified => self.update_title(),
+            DocumentEvent::TextModified => self.borrow_mut().update_title(),
         }
     }
 }
