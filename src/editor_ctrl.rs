@@ -179,6 +179,7 @@ impl EditorCtrl {
             file: None,
         }
     }
+
     fn delete_selection(&self) {
         let mut from: c_long = 0;
         let mut to: c_long = 0;
@@ -187,6 +188,11 @@ impl EditorCtrl {
             &mut to as *mut c_long as *mut c_void,
         );
         self.ctrl.remove(from, to);
+    }
+
+    pub fn set_path(&mut self, path: Option<&str>) {
+        self.file = path.map(ToOwned::to_owned);
+        self.reset_modified();
     }
 }
 impl<'a> CommandHandler<EditorCommand<'a>> for EditorCtrl {

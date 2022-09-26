@@ -116,7 +116,7 @@ impl EditorFrame {
             return;
         }
         self.editor.clear();
-        self.set_path(None);
+        self.editor.set_path(None);
     }
 
     fn save_if_modified(&mut self) -> Result<(), ()> {
@@ -127,11 +127,6 @@ impl EditorFrame {
         }
     }
 
-    fn set_path(&mut self, path: Option<&str>) {
-        self.editor.file = path.map(ToOwned::to_owned);
-        self.editor.reset_modified();
-    }
-
     pub fn open_file(&mut self) {
         if self.save_if_modified().is_err() {
             return;
@@ -140,7 +135,7 @@ impl EditorFrame {
         if wx::ID_OK == file_dialog.show_modal() {
             let path = file_dialog.get_path();
             self.editor.load_from(&path);
-            self.set_path(Some(&path));
+            self.editor.set_path(Some(&path));
         }
     }
 
@@ -167,7 +162,7 @@ impl EditorFrame {
     fn save_to(&mut self, path: &str) -> Result<(), ()> {
         // TODO: Error Handling
         if self.editor.save_to(&path) {
-            self.set_path(Some(path));
+            self.editor.set_path(Some(path));
             Ok(())
         } else {
             Err(())
