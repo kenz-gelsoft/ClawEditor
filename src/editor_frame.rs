@@ -17,7 +17,6 @@ const CW_USEDEFAULT: c_int = c_int::MIN;
 pub struct EditorFrame {
     base: wx::Frame,
     editor: EditorCtrl,
-    file: Option<String>,
 }
 impl EditorFrame {
     pub fn new() -> Rc<RefCell<Self>> {
@@ -36,7 +35,6 @@ impl EditorFrame {
         let frame = Rc::new(RefCell::new(EditorFrame {
             base: frame,
             editor,
-            file: None,
         }));
         let frame_copy = frame.clone();
         frame
@@ -130,7 +128,7 @@ impl EditorFrame {
     }
 
     fn set_path(&mut self, path: Option<&str>) {
-        self.file = path.map(ToOwned::to_owned);
+        self.editor.file = path.map(ToOwned::to_owned);
         self.editor.reset_modified();
     }
 
@@ -147,7 +145,7 @@ impl EditorFrame {
     }
 
     pub fn save(&mut self) -> Result<(), ()> {
-        let path = self.file.to_owned();
+        let path = self.editor.file.to_owned();
         if let Some(path) = path {
             self.save_to(&path)
         } else {
@@ -201,7 +199,7 @@ impl EditorFrame {
     fn update_title(&self) {
         let mut modified = "";
         let mut file = UNTITLED.to_owned();
-        if let Some(path) = self.file.as_ref() {
+        if let Some(path) = self.editor.file.as_ref() {
             file = path.to_owned();
         }
         if self.editor.is_modified() {

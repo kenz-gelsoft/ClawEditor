@@ -159,6 +159,7 @@ pub trait Document {
 pub struct EditorCtrl {
     ctrl: wx::TextCtrl,
     events: Rc<RefCell<Subject<DocumentEvent>>>,
+    pub file: Option<String>,
 }
 impl EditorCtrl {
     pub fn new<W: WindowMethods>(parent: &W) -> Self {
@@ -175,6 +176,7 @@ impl EditorCtrl {
         Self {
             ctrl: textbox,
             events,
+            file: None,
         }
     }
     fn delete_selection(&self) {
