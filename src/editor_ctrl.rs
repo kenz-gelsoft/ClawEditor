@@ -57,7 +57,7 @@ mod test {
         fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>> {
             todo!()
         }
-        fn clear(&self) {
+        fn new_file(&mut self) {
             todo!()
         }
 
@@ -69,7 +69,7 @@ mod test {
             self.modified = false;
         }
 
-        fn load_from(&self, file_path: &str) {
+        fn load_from(&mut self, file_path: &str) {
             todo!()
         }
 
@@ -149,10 +149,10 @@ mod test {
 
 pub trait Document {
     fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>>;
-    fn clear(&self);
+    fn new_file(&mut self);
     fn is_modified(&self) -> bool;
     fn reset_modified(&mut self);
-    fn load_from(&self, file_path: &str);
+    fn load_from(&mut self, file_path: &str);
     fn save_to(&mut self, file_path: &str) -> bool;
 }
 
@@ -190,7 +190,7 @@ impl EditorCtrl {
         self.ctrl.remove(from, to);
     }
 
-    pub fn set_path(&mut self, path: Option<&str>) {
+    fn set_path(&mut self, path: Option<&str>) {
         self.file = path.map(ToOwned::to_owned);
         self.reset_modified();
     }
@@ -214,8 +214,9 @@ impl Document for EditorCtrl {
     fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>> {
         self.events.clone()
     }
-    fn clear(&self) {
+    fn new_file(&mut self) {
         self.ctrl.clear();
+        self.set_path(None);
     }
     fn is_modified(&self) -> bool {
         self.ctrl.is_modified()
@@ -223,10 +224,13 @@ impl Document for EditorCtrl {
     fn reset_modified(&mut self) {
         self.ctrl.set_modified(false);
     }
-    fn load_from(&self, file_path: &str) {
+    fn load_from(&mut self, file_path: &str) {
         self.ctrl.load_file(file_path, wx::TEXT_TYPE_ANY);
+        self.set_path(Some(&file_path));
     }
     fn save_to(&mut self, file_path: &str) -> bool {
-        self.ctrl.save_file(file_path, wx::TEXT_TYPE_ANY)
+        let result = self.ctrl.save_file(file_path, wx::TEXT_TYPE_ANY);
+        self.set_path(Some(file_path));
+        result
     }
 }
