@@ -168,10 +168,18 @@ impl EditorCtrl {
             .build();
         let events = Rc::new(RefCell::new(Subject::new()));
         let weak_events = Rc::downgrade(&events);
+        let textbox_copy = textbox.clone();
         textbox.bind(wx::RustEvent::Text, move |_: &wx::CommandEvent| {
-            if let Some(events) = weak_events.upgrade() {
-                events.borrow().notify_event(DocumentEvent::TextModified);
-            }
+            // テキスト編集にリアルタイムで応答すると、
+            // テキスト編集を引き起こしたイベント処理内で borrow_mut() していることがあり、
+            // borrow rule に違反して panic する場合がある。
+            // テキスト編集に対するイベント処理をを1イベント分遅らせることで回避する。
+            let weak_events = weak_events.clone();
+            textbox_copy.call_after(move |_| {
+                if let Some(events) = weak_events.upgrade() {
+                    events.borrow().notify_event(DocumentEvent::TextModified);
+                }
+            });
         });
         Self {
             ctrl: textbox,

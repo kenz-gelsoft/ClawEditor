@@ -28,7 +28,7 @@ dependencies = [
 [[package]]
 name = "wxrust-base"
 version = "0.0.1-alpha"
-source = "git+https://github.com/kenz-gelsoft/wxRust2#dfe91f6e966fa5bd2be95357f6090712ac1d4673"
+source = "git+https://github.com/kenz-gelsoft/wxRust2?branch=call_after#a7b47c81fcbd099a7413b5cfe11e5d338018f913"
 dependencies = [
  "cc",
  "wxrust-config",
