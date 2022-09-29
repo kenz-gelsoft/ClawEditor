@@ -27,13 +27,18 @@ fn save_unsaved_change<D: Document, U: UnsavedChangeUI, CB: Fn(bool)>(
     mut ui: U,
     callback: CB,
 ) {
-    ui.get_path_to_save(move |path| {
-        if let Some(path) = path {
-            // TODO: エラーを返す
-            doc.save_to(&path);
-        }
+    if let Some(path) = doc.path() {
+        doc.save_to(&path);
         callback(!doc.is_modified());
-    });
+    } else {
+        ui.get_path_to_save(move |path| {
+            if let Some(path) = path {
+                // TODO: エラーを返す
+                doc.save_to(&path);
+            }
+            callback(!doc.is_modified());
+        });
+    }
 }
 
 #[cfg(test)]
@@ -42,12 +47,14 @@ mod test {
 
     // TODO: mockall を試す
     struct MockDoc {
+        path: Option<String>,
         modified: bool,
         save_will_fail: bool,
     }
     impl MockDoc {
         fn new() -> Self {
             Self {
+                path: None,
                 modified: true,
                 save_will_fail: false,
             }
@@ -59,6 +66,10 @@ mod test {
         }
         fn new_file(&mut self) {
             todo!()
+        }
+
+        fn path(&self) -> Option<String> {
+            return self.path.clone();
         }
 
         fn is_modified(&self) -> bool {
@@ -83,23 +94,42 @@ mod test {
     }
 
     struct MockSaveDialog {
+        wont_be_called: bool,
         will_be_cancelled: bool,
     }
     impl MockSaveDialog {
         fn new() -> Self {
             Self {
+                wont_be_called: false,
                 will_be_cancelled: false,
             }
         }
     }
     impl UnsavedChangeUI for MockSaveDialog {
         fn get_path_to_save<CB: FnMut(Option<String>)>(&mut self, mut callback: CB) {
+            assert!(!self.wont_be_called);
             if self.will_be_cancelled {
                 callback(None);
                 return;
             }
             callback(Some("path/to/save".to_owned()))
         }
+    }
+
+    #[test]
+    fn save_dlg_wont_be_called_if_has_path() {
+        // Given: ドキュメントの変更フラグが立っている状態から
+        let mut doc = MockDoc::new();
+        doc.path = Some("dummy".to_owned());
+        assert!(doc.is_modified());
+
+        let mut save_dlg = MockSaveDialog::new();
+        save_dlg.wont_be_called = true;
+        // When: 保存に成功したら
+        save_unsaved_change(doc, save_dlg, |result| {
+            // Then: 変更フラグが倒れている
+            assert!(result);
+        });
     }
 
     #[test]
@@ -150,6 +180,7 @@ mod test {
 pub trait Document {
     fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>>;
     fn new_file(&mut self);
+    fn path(&self) -> Option<String>;
     fn is_modified(&self) -> bool;
     fn reset_modified(&mut self);
     fn load_from(&mut self, file_path: &str);
@@ -225,6 +256,9 @@ impl Document for EditorCtrl {
     fn new_file(&mut self) {
         self.ctrl.clear();
         self.set_path(None);
+    }
+    fn path(&self) -> Option<String> {
+        self.file.clone()
     }
     fn is_modified(&self) -> bool {
         self.ctrl.is_modified()
