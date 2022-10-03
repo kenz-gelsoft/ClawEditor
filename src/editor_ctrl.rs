@@ -27,7 +27,9 @@ pub fn save_unsaved_change<D: Document, U: UnsavedChangeUI, CB: Fn(&mut D, bool)
     ui: &U,
     callback: CB,
 ) {
-    if let Some(path) = doc.path() {
+    if !doc.is_modified() {
+        callback(doc, true);
+    } else if let Some(path) = doc.path() {
         doc.save_to(&path);
         callback(doc, !doc.is_modified());
     } else {
@@ -114,6 +116,23 @@ mod test {
             }
             callback(Some("path/to/save".to_owned()))
         }
+    }
+
+    #[test]
+    fn do_nothing_if_not_modified() {
+        // Given: ドキュメントの変更フラグが立っていない状態から
+        let mut doc = MockDoc::new();
+        doc.modified = false;
+        assert!(!doc.is_modified());
+
+        // When: 保存を判定したら
+        let mut save_dlg = MockSaveDialog::new();
+        // Then: 保存ダイアログは呼ばれず
+        save_dlg.wont_be_called = true;
+        save_unsaved_change(&mut doc, &save_dlg, |_doc, saved| {
+            // Then: 変更フラグはたっていないまま
+            assert!(saved);
+        });
     }
 
     #[test]
