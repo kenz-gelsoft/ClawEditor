@@ -12,33 +12,28 @@ pub enum DocumentEvent {
     TextModified,
 }
 
-// 保存されていない変更を管理する
-trait UnsavedChange {
-    fn new_file();
-}
-
 pub trait UnsavedChangeUI {
-    fn get_path_to_save<CB: FnMut(Option<String>)>(&self, callback: CB);
+    fn get_path_to_save<CB: FnMut(Option<String>)>(&self, on_complete: CB);
 }
 
 // TODO: future 的なインターフェイス
 pub fn save_unsaved_change<D: Document, U: UnsavedChangeUI, CB: Fn(&mut D, bool)>(
     doc: &mut D,
     ui: &U,
-    callback: CB,
+    on_complete: CB,
 ) {
     if !doc.is_modified() {
-        callback(doc, true);
+        on_complete(doc, true);
     } else if let Some(path) = doc.path() {
         doc.save_to(&path);
-        callback(doc, !doc.is_modified());
+        on_complete(doc, !doc.is_modified());
     } else {
         ui.get_path_to_save(move |path| {
             if let Some(path) = path {
                 // TODO: エラーを返す
                 doc.save_to(&path);
             }
-            callback(doc, !doc.is_modified());
+            on_complete(doc, !doc.is_modified());
         });
     }
 }
@@ -108,13 +103,13 @@ mod test {
         }
     }
     impl UnsavedChangeUI for MockSaveDialog {
-        fn get_path_to_save<CB: FnMut(Option<String>)>(&self, mut callback: CB) {
+        fn get_path_to_save<CB: FnMut(Option<String>)>(&self, mut on_complete: CB) {
             assert!(!self.wont_be_called);
             if self.will_be_cancelled {
-                callback(None);
+                on_complete(None);
                 return;
             }
-            callback(Some("path/to/save".to_owned()))
+            on_complete(Some("path/to/save".to_owned()))
         }
     }
 
