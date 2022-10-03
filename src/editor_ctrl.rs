@@ -13,6 +13,7 @@ pub enum DocumentEvent {
 }
 
 pub trait UnsavedChangeUI {
+    fn confirm_save<CB: FnMut(Option<bool>)>(&self, on_complete: CB);
     fn get_path_to_save<CB: FnMut(Option<String>)>(&self, on_complete: CB);
 }
 
@@ -103,6 +104,9 @@ mod test {
         }
     }
     impl UnsavedChangeUI for MockSaveDialog {
+        fn confirm_save<CB: FnMut(Option<bool>)>(&self, mut on_complete: CB) {
+            on_complete(Some(true))
+        }
         fn get_path_to_save<CB: FnMut(Option<String>)>(&self, mut on_complete: CB) {
             assert!(!self.wont_be_called);
             if self.will_be_cancelled {
