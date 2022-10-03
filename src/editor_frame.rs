@@ -6,7 +6,9 @@ use wx;
 use wx::methods::*;
 
 use crate::commands::{Command, CommandHandler, EditorCommand};
-use crate::editor_ctrl::{Document, DocumentEvent, EditorCtrl};
+use crate::editor_ctrl::{
+    save_unsaved_change, Document, DocumentEvent, EditorCtrl, UnsavedChangeUI,
+};
 use crate::observer::Observer;
 
 const APP_NAME: &str = "カニツメエディタ";
@@ -112,29 +114,25 @@ impl EditorFrame {
     }
 
     pub fn new_file(&mut self) {
-        if self.save_if_modified().is_err() {
-            return;
-        }
-        self.editor.new_file();
-    }
-
-    fn save_if_modified(&mut self) -> Result<(), ()> {
-        if self.editor.is_modified() {
-            self.save()
-        } else {
-            Ok(())
-        }
+        save_unsaved_change(&mut self.editor, &self.base, |editor, saved| {
+            if !saved {
+                return;
+            }
+            editor.new_file();
+        });
     }
 
     pub fn open_file(&mut self) {
-        if self.save_if_modified().is_err() {
-            return;
-        }
-        let file_dialog = wx::FileDialog::builder(Some(&self.base)).build();
-        if wx::ID_OK == file_dialog.show_modal() {
-            let path = file_dialog.get_path();
-            self.editor.load_from(&path);
-        }
+        save_unsaved_change(&mut self.editor, &self.base, |editor, saved| {
+            if !saved {
+                return;
+            }
+            let file_dialog = wx::FileDialog::builder(Some(&self.base)).build();
+            if wx::ID_OK == file_dialog.show_modal() {
+                let path = file_dialog.get_path();
+                editor.load_from(&path);
+            }
+        });
     }
 
     pub fn save(&mut self) -> Result<(), ()> {
@@ -251,6 +249,18 @@ impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
                 }
             },
         }
+    }
+}
+impl UnsavedChangeUI for wx::Frame {
+    fn get_path_to_save<CB: FnMut(Option<String>)>(&self, mut callback: CB) {
+        let file_dialog = wx::FileDialog::builder(Some(self))
+            .style(wx::FC_SAVE.into())
+            .build();
+        callback(if wx::ID_OK == file_dialog.show_modal() {
+            Some(file_dialog.get_path())
+        } else {
+            None
+        });
     }
 }
 impl Observer<DocumentEvent> for RefCell<EditorFrame> {
