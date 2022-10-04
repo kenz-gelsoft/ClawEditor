@@ -253,8 +253,18 @@ impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
 }
 impl UnsavedChangeUI for wx::Frame {
     fn confirm_save<CB: FnOnce(Option<bool>)>(&self, on_complete: CB) {
-        // TODO: 確認ダイアログ
-        on_complete(Some(true))
+        // TODO: メッセージ調整
+        let answer = wx::message_box(
+            "変更があります。保存しますか？",
+            APP_NAME,
+            wx::YES_NO | (wx::CANCEL | wx::CENTRE) as c_int,
+            Some(self),
+        );
+        on_complete(match answer {
+            wx::YES => Some(true),
+            wx::NO => Some(false),
+            _ => None,
+        });
     }
     fn get_path_to_save<CB: FnMut(Option<String>)>(&self, mut callback: CB) {
         let file_dialog = wx::FileDialog::builder(Some(self))
