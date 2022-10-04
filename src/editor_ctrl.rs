@@ -91,25 +91,25 @@ mod test {
         }
     }
 
-    struct MockSaveDialog {
-        wont_be_called: bool,
-        will_be_cancelled: bool,
+    struct MockSaveUI {
+        save_dlg_wont_be_called: bool,
+        save_dlg_will_be_cancelled: bool,
     }
-    impl MockSaveDialog {
+    impl MockSaveUI {
         fn new() -> Self {
             Self {
-                wont_be_called: false,
-                will_be_cancelled: false,
+                save_dlg_wont_be_called: false,
+                save_dlg_will_be_cancelled: false,
             }
         }
     }
-    impl UnsavedChangeUI for MockSaveDialog {
+    impl UnsavedChangeUI for MockSaveUI {
         fn confirm_save<CB: FnMut(Option<bool>)>(&self, mut on_complete: CB) {
             on_complete(Some(true))
         }
         fn get_path_to_save<CB: FnMut(Option<String>)>(&self, mut on_complete: CB) {
-            assert!(!self.wont_be_called);
-            if self.will_be_cancelled {
+            assert!(!self.save_dlg_wont_be_called);
+            if self.save_dlg_will_be_cancelled {
                 on_complete(None);
                 return;
             }
@@ -125,10 +125,10 @@ mod test {
         assert!(!doc.is_modified());
 
         // When: 保存を判定したら
-        let mut save_dlg = MockSaveDialog::new();
+        let mut ui = MockSaveUI::new();
         // Then: 保存ダイアログは呼ばれず
-        save_dlg.wont_be_called = true;
-        save_unsaved_change(&mut doc, &save_dlg, |_doc, saved| {
+        ui.save_dlg_wont_be_called = true;
+        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグはたっていないまま
             assert!(saved);
         });
@@ -141,10 +141,10 @@ mod test {
         doc.path = Some("dummy".to_owned());
         assert!(doc.is_modified());
 
-        let mut save_dlg = MockSaveDialog::new();
-        save_dlg.wont_be_called = true;
+        let mut ui = MockSaveUI::new();
+        ui.save_dlg_wont_be_called = true;
         // When: 保存に成功したら
-        save_unsaved_change(&mut doc, &save_dlg, |_doc, saved| {
+        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグが倒れている
             assert!(saved);
         });
@@ -156,9 +156,9 @@ mod test {
         let mut doc = MockDoc::new();
         assert!(doc.is_modified());
 
-        let save_dlg = MockSaveDialog::new();
+        let ui = MockSaveUI::new();
         // When: 保存に成功したら
-        save_unsaved_change(&mut doc, &save_dlg, |_doc, saved| {
+        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグが倒れている
             assert!(saved);
         });
@@ -170,10 +170,10 @@ mod test {
         let mut doc = MockDoc::new();
         assert!(doc.is_modified());
 
-        let mut save_dlg = MockSaveDialog::new();
+        let mut ui = MockSaveUI::new();
         // When: 保存がキャンセルされたら
-        save_dlg.will_be_cancelled = true;
-        save_unsaved_change(&mut doc, &save_dlg, |_doc, saved| {
+        ui.save_dlg_will_be_cancelled = true;
+        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグは立ったまま
             assert!(!saved);
         });
@@ -185,10 +185,10 @@ mod test {
         let mut doc = MockDoc::new();
         assert!(doc.is_modified());
 
-        let save_dlg = MockSaveDialog::new();
+        let ui = MockSaveUI::new();
         // When: 保存に失敗したら
         doc.save_will_fail = true;
-        save_unsaved_change(&mut doc, &save_dlg, |_doc, saved| {
+        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグは立ったまま
             assert!(!saved);
         });
