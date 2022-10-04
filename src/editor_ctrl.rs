@@ -23,17 +23,19 @@ pub fn save_unsaved_change<D: Document, U: UnsavedChangeUI, CB: Fn(&mut D, bool)
     ui: &U,
     on_complete: CB,
 ) {
+    if !doc.is_modified() {
+        // 変更されていなければ何もしない
+        return on_complete(doc, true);
+    }
     ui.confirm_save(|result| {
-        if let Some(result) = result {
-            if result {
+        if let Some(do_save) = result {
+            if do_save {
                 // 確認ダイアログで「保存する」
-                if !doc.is_modified() {
-                    on_complete(doc, true);
-                } else if let Some(path) = doc.path() {
+                if let Some(path) = doc.path() {
                     doc.save_to(&path);
                     on_complete(doc, !doc.is_modified());
                 } else {
-                    ui.get_path_to_save(move |path| {
+                    ui.get_path_to_save(|path| {
                         if let Some(path) = path {
                             // TODO: エラーを返す
                             doc.save_to(&path);
@@ -109,6 +111,7 @@ mod test {
     }
 
     struct MockSaveUI {
+        confirm_wont_be_called: bool,
         // Yes/No/Cancel
         confirm_result: Option<bool>,
         save_dlg_wont_be_called: bool,
@@ -117,6 +120,7 @@ mod test {
     impl MockSaveUI {
         fn new() -> Self {
             Self {
+                confirm_wont_be_called: false,
                 confirm_result: Some(true),
                 save_dlg_wont_be_called: false,
                 save_dlg_will_be_cancelled: false,
@@ -125,6 +129,7 @@ mod test {
     }
     impl UnsavedChangeUI for MockSaveUI {
         fn confirm_save<CB: FnOnce(Option<bool>)>(&self, on_complete: CB) {
+            assert!(!self.confirm_wont_be_called);
             on_complete(self.confirm_result)
         }
         fn get_path_to_save<CB: FnMut(Option<String>)>(&self, mut on_complete: CB) {
@@ -146,7 +151,9 @@ mod test {
 
         // When: 保存を判定したら
         let mut ui = MockSaveUI::new();
-        // Then: 保存ダイアログは呼ばれず
+        // Then: 確認ダイアログも
+        ui.confirm_wont_be_called = true;
+        // Then: 保存ダイアログも呼ばれず
         ui.save_dlg_wont_be_called = true;
         save_unsaved_change(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグはたっていないまま
