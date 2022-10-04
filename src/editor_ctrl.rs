@@ -13,7 +13,7 @@ pub enum DocumentEvent {
 }
 
 pub trait UnsavedChangeUI {
-    fn confirm_save<CB: FnMut(Option<bool>)>(&self, on_complete: CB);
+    fn confirm_save<CB: FnOnce(Option<bool>)>(&self, on_complete: CB);
     fn get_path_to_save<CB: FnMut(Option<String>)>(&self, on_complete: CB);
 }
 
@@ -23,20 +23,27 @@ pub fn save_unsaved_change<D: Document, U: UnsavedChangeUI, CB: Fn(&mut D, bool)
     ui: &U,
     on_complete: CB,
 ) {
-    if !doc.is_modified() {
-        on_complete(doc, true);
-    } else if let Some(path) = doc.path() {
-        doc.save_to(&path);
-        on_complete(doc, !doc.is_modified());
-    } else {
-        ui.get_path_to_save(move |path| {
-            if let Some(path) = path {
-                // TODO: エラーを返す
+    ui.confirm_save(|result| {
+        if let Some(result) = result {
+            if !doc.is_modified() {
+                on_complete(doc, true);
+            } else if let Some(path) = doc.path() {
                 doc.save_to(&path);
+                on_complete(doc, !doc.is_modified());
+            } else {
+                ui.get_path_to_save(move |path| {
+                    if let Some(path) = path {
+                        // TODO: エラーを返す
+                        doc.save_to(&path);
+                    }
+                    on_complete(doc, !doc.is_modified());
+                });
             }
-            on_complete(doc, !doc.is_modified());
-        });
-    }
+        } else {
+            // 確認ダイアログでキャンセル
+            on_complete(doc, false);
+        }
+    });
 }
 
 #[cfg(test)]
@@ -92,20 +99,26 @@ mod test {
     }
 
     struct MockSaveUI {
+        confirm_canclelled: bool,
         save_dlg_wont_be_called: bool,
         save_dlg_will_be_cancelled: bool,
     }
     impl MockSaveUI {
         fn new() -> Self {
             Self {
+                confirm_canclelled: false,
                 save_dlg_wont_be_called: false,
                 save_dlg_will_be_cancelled: false,
             }
         }
     }
     impl UnsavedChangeUI for MockSaveUI {
-        fn confirm_save<CB: FnMut(Option<bool>)>(&self, mut on_complete: CB) {
-            on_complete(Some(true))
+        fn confirm_save<CB: FnOnce(Option<bool>)>(&self, on_complete: CB) {
+            on_complete(if self.confirm_canclelled {
+                None
+            } else {
+                Some(true)
+            })
         }
         fn get_path_to_save<CB: FnMut(Option<String>)>(&self, mut on_complete: CB) {
             assert!(!self.save_dlg_wont_be_called);
@@ -131,6 +144,23 @@ mod test {
         save_unsaved_change(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグはたっていないまま
             assert!(saved);
+        });
+    }
+
+    #[test]
+    fn do_nothing_if_confirm_cancelled() {
+        // Given: ドキュメントの変更フラグが立っている状態から
+        let mut doc = MockDoc::new();
+        assert!(doc.is_modified());
+
+        let mut ui = MockSaveUI::new();
+        // When: 確認ダイアログでキャンセルしたら
+        ui.confirm_canclelled = true;
+        // Then: 保存ダイアログは呼ばれず
+        ui.save_dlg_wont_be_called = true;
+        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
+            // Then: 変更フラグはたったまま
+            assert!(!saved);
         });
     }
 

@@ -252,7 +252,7 @@ impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
     }
 }
 impl UnsavedChangeUI for wx::Frame {
-    fn confirm_save<CB: FnMut(Option<bool>)>(&self, mut on_complete: CB) {
+    fn confirm_save<CB: FnOnce(Option<bool>)>(&self, on_complete: CB) {
         // TODO: 確認ダイアログ
         on_complete(Some(true))
     }
