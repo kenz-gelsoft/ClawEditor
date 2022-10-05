@@ -8,7 +8,7 @@ use wx::methods::*;
 use crate::commands::{Command, CommandHandler, EditorCommand};
 use crate::editor_ctrl::{Document, DocumentEvent, EditorCtrl};
 use crate::observer::Observer;
-use crate::unsaved_changes::{save_unsaved_change, UnsavedChangeUI};
+use crate::unsaved_changes;
 
 const APP_NAME: &str = "カニツメエディタ";
 const UNTITLED: &str = "無題";
@@ -113,7 +113,7 @@ impl EditorFrame {
     }
 
     pub fn new_file(&mut self) {
-        save_unsaved_change(&mut self.editor, &self.base, |editor, saved| {
+        unsaved_changes::save(&mut self.editor, &self.base, |editor, saved| {
             if !saved {
                 return;
             }
@@ -122,7 +122,7 @@ impl EditorFrame {
     }
 
     pub fn open_file(&mut self) {
-        save_unsaved_change(&mut self.editor, &self.base, |editor, saved| {
+        unsaved_changes::save(&mut self.editor, &self.base, |editor, saved| {
             if !saved {
                 return;
             }
@@ -250,7 +250,7 @@ impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
         }
     }
 }
-impl UnsavedChangeUI for wx::Frame {
+impl unsaved_changes::UI for wx::Frame {
     fn confirm_save<CB: FnOnce(Option<bool>)>(&self, on_complete: CB) {
         // TODO: メッセージ調整
         let answer = wx::message_box(

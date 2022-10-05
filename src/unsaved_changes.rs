@@ -1,16 +1,12 @@
 use crate::editor_ctrl::Document;
 
-pub trait UnsavedChangeUI {
+pub trait UI {
     fn confirm_save<CB: FnOnce(Option<bool>)>(&self, on_complete: CB);
     fn get_path_to_save<CB: FnMut(Option<String>)>(&self, on_complete: CB);
 }
 
 // TODO: future 的なインターフェイス
-pub fn save_unsaved_change<D: Document, U: UnsavedChangeUI, CB: Fn(&mut D, bool)>(
-    doc: &mut D,
-    ui: &U,
-    on_complete: CB,
-) {
+pub fn save<D: Document, U: UI, CB: Fn(&mut D, bool)>(doc: &mut D, ui: &U, on_complete: CB) {
     if !doc.is_modified() {
         // 変更されていなければ何もしない
         return on_complete(doc, true);
@@ -115,7 +111,7 @@ mod test {
             }
         }
     }
-    impl UnsavedChangeUI for MockSaveUI {
+    impl UI for MockSaveUI {
         fn confirm_save<CB: FnOnce(Option<bool>)>(&self, on_complete: CB) {
             assert!(!self.confirm_wont_be_called);
             on_complete(self.confirm_result)
@@ -143,7 +139,7 @@ mod test {
         ui.confirm_wont_be_called = true;
         // Then: 保存ダイアログも呼ばれず
         ui.save_dlg_wont_be_called = true;
-        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
+        save(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグはたっていないまま
             assert!(saved);
         });
@@ -160,7 +156,7 @@ mod test {
         ui.confirm_result = None;
         // Then: 保存ダイアログは呼ばれず
         ui.save_dlg_wont_be_called = true;
-        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
+        save(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグはたったまま
             assert!(!saved);
         });
@@ -179,7 +175,7 @@ mod test {
         ui.save_dlg_wont_be_called = true;
         // Then: 保存も行われないが
         doc.save_wont_be_called = true;
-        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
+        save(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグは倒れる
             assert!(saved);
         });
@@ -195,7 +191,7 @@ mod test {
         let mut ui = MockSaveUI::new();
         ui.save_dlg_wont_be_called = true;
         // When: 保存に成功したら
-        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
+        save(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグが倒れている
             assert!(saved);
         });
@@ -209,7 +205,7 @@ mod test {
 
         let ui = MockSaveUI::new();
         // When: 保存に成功したら
-        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
+        save(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグが倒れている
             assert!(saved);
         });
@@ -224,7 +220,7 @@ mod test {
         let mut ui = MockSaveUI::new();
         // When: 保存がキャンセルされたら
         ui.save_dlg_will_be_cancelled = true;
-        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
+        save(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグは立ったまま
             assert!(!saved);
         });
@@ -239,7 +235,7 @@ mod test {
         let ui = MockSaveUI::new();
         // When: 保存に失敗したら
         doc.save_will_fail = true;
-        save_unsaved_change(&mut doc, &ui, |_doc, saved| {
+        save(&mut doc, &ui, |_doc, saved| {
             // Then: 変更フラグは立ったまま
             assert!(!saved);
         });
