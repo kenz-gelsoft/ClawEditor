@@ -6,10 +6,9 @@ use wx;
 use wx::methods::*;
 
 use crate::commands::{Command, CommandHandler, EditorCommand};
-use crate::editor_ctrl::{
-    save_unsaved_change, Document, DocumentEvent, EditorCtrl, UnsavedChangeUI,
-};
+use crate::editor_ctrl::{Document, DocumentEvent, EditorCtrl};
 use crate::observer::Observer;
+use crate::unsaved_changes::{save_unsaved_change, UnsavedChangeUI};
 
 const APP_NAME: &str = "カニツメエディタ";
 const UNTITLED: &str = "無題";

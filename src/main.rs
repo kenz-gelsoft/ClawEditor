@@ -9,6 +9,7 @@ mod editor_frame;
 use editor_frame::EditorFrame;
 
 mod observer;
+mod unsaved_changes;
 
 fn main() {
     wx::App::run(|_| {
