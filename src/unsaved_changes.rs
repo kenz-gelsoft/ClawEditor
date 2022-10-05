@@ -43,6 +43,12 @@ pub fn save<D: Document, U: UI, CB: Fn(&mut D, bool)>(doc: &mut D, ui: &U, on_co
 mod test {
     use super::*;
 
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use crate::editor_ctrl::DocumentEvent;
+    use crate::observer::Subject;
+
     // TODO: mockall を試す
     struct MockDoc {
         path: Option<String>,
