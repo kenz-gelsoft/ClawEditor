@@ -16,21 +16,22 @@ pub fn save<D: Document, U: UI, CB: Fn(&mut D, bool)>(doc: &mut D, ui: &U, on_co
             if do_save {
                 // 確認ダイアログで「保存する」
                 if let Some(path) = doc.path() {
-                    doc.save_to(&path);
-                    on_complete(doc, !doc.is_modified());
+                    let saved = doc.save_to(&path);
+                    on_complete(doc, saved);
                 } else {
                     ui.get_path_to_save(|path| {
-                        if let Some(path) = path {
+                        let saved = if let Some(path) = path {
                             // TODO: エラーを返す
-                            doc.save_to(&path);
-                        }
-                        on_complete(doc, !doc.is_modified());
+                            doc.save_to(&path)
+                        } else {
+                            false
+                        };
+                        on_complete(doc, saved);
                     });
                 }
             } else {
                 // 確認ダイアログで「保存しない」
-                doc.reset_modified();
-                on_complete(doc, !doc.is_modified());
+                on_complete(doc, true);
             }
         } else {
             // 確認ダイアログでキャンセル
@@ -80,10 +81,6 @@ mod test {
 
         fn is_modified(&self) -> bool {
             self.modified
-        }
-
-        fn reset_modified(&mut self) {
-            self.modified = false;
         }
 
         fn load_from(&mut self, _file_path: &str) {

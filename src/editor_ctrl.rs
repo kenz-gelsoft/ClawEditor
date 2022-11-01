@@ -17,7 +17,6 @@ pub trait Document {
     fn new_file(&mut self);
     fn path(&self) -> Option<String>;
     fn is_modified(&self) -> bool;
-    fn reset_modified(&mut self);
     fn load_from(&mut self, file_path: &str);
     fn save_to(&mut self, file_path: &str) -> bool;
 }
@@ -68,6 +67,10 @@ impl EditorCtrl {
         self.file = path.map(ToOwned::to_owned);
         self.reset_modified();
     }
+
+    fn reset_modified(&mut self) {
+        self.ctrl.set_modified(false);
+    }
 }
 impl<'a> CommandHandler<EditorCommand<'a>> for EditorCtrl {
     fn handle_command(&mut self, editor_command: &EditorCommand<'a>) {
@@ -97,9 +100,6 @@ impl Document for EditorCtrl {
     }
     fn is_modified(&self) -> bool {
         self.ctrl.is_modified()
-    }
-    fn reset_modified(&mut self) {
-        self.ctrl.set_modified(false);
     }
     fn load_from(&mut self, file_path: &str) {
         self.ctrl.load_file(file_path, wx::TEXT_TYPE_ANY);
