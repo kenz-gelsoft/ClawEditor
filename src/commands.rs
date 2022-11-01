@@ -3,7 +3,7 @@ use std::os::raw::c_int;
 use wx;
 
 pub trait CommandHandler<C> {
-    fn handle_command(&self, command: &C);
+    fn handle_command(&mut self, command: &C);
 }
 
 pub enum EditorCommand<'a> {

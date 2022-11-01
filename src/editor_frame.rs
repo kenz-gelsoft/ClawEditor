@@ -8,6 +8,7 @@ use wx::methods::*;
 use crate::commands::{Command, CommandHandler, EditorCommand};
 use crate::editor_ctrl::{Document, DocumentEvent, EditorCtrl};
 use crate::observer::Observer;
+use crate::unsaved_changes;
 
 const APP_NAME: &str = "カニツメエディタ";
 const UNTITLED: &str = "無題";
@@ -17,11 +18,9 @@ const CW_USEDEFAULT: c_int = c_int::MIN;
 pub struct EditorFrame {
     base: wx::Frame,
     editor: EditorCtrl,
-    // TODO: avoid interior mutability
-    file: Rc<RefCell<Option<String>>>,
 }
 impl EditorFrame {
-    pub fn new() -> Rc<Self> {
+    pub fn new() -> Rc<RefCell<Self>> {
         let default_size = if cfg!(windows) {
             // XXX: Windows プログラムとして自然なデフォルトサイズにするため、
             // CW_USEDEFAULT を指定しています。
@@ -34,27 +33,29 @@ impl EditorFrame {
             .size(default_size)
             .build();
         let editor = EditorCtrl::new(&frame);
-        let frame = Rc::new(EditorFrame {
+        let frame = Rc::new(RefCell::new(EditorFrame {
             base: frame,
             editor,
-            file: Rc::new(RefCell::new(None)),
-        });
+        }));
+        let frame_copy = frame.clone();
         frame
+            .borrow()
             .editor
             .events()
             .borrow_mut()
-            .add_observer(frame.clone());
+            .add_observer(frame_copy);
         let frame_copy = frame.clone();
         frame
+            .borrow()
             .base
             .bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
                 let command = Command::from(event.get_id())
                     .map(|command| EditorCommand::Command(command))
                     .unwrap_or(EditorCommand::StandardEvents(event));
-                frame_copy.handle_command(&command);
+                frame_copy.borrow_mut().handle_command(&command);
             });
-        frame.build_menu();
-        frame.update_title();
+        frame.borrow().build_menu();
+        frame.borrow().update_title();
 
         frame
     }
@@ -111,43 +112,30 @@ impl EditorFrame {
         self.base.set_menu_bar(Some(&menu_bar));
     }
 
-    pub fn new_file(&self) {
-        if self.save_if_modified().is_err() {
-            return;
-        }
-        self.editor.clear();
-        self.set_path(None);
+    pub fn new_file(&mut self) {
+        unsaved_changes::save(&mut self.editor, &self.base, |editor, saved| {
+            if !saved {
+                return;
+            }
+            editor.new_file();
+        });
     }
 
-    fn save_if_modified(&self) -> Result<(), ()> {
-        if self.editor.is_modified() {
-            self.save()
-        } else {
-            Ok(())
-        }
+    pub fn open_file(&mut self) {
+        unsaved_changes::save(&mut self.editor, &self.base, |editor, saved| {
+            if !saved {
+                return;
+            }
+            let file_dialog = wx::FileDialog::builder(Some(&self.base)).build();
+            if wx::ID_OK == file_dialog.show_modal() {
+                let path = file_dialog.get_path();
+                editor.load_from(&path);
+            }
+        });
     }
 
-    fn set_path(&self, path: Option<&str>) {
-        *self.file.borrow_mut() = path.map(ToOwned::to_owned);
-        self.editor.reset_modified();
-    }
-
-    pub fn open_file(&self) {
-        if self.save_if_modified().is_err() {
-            return;
-        }
-        let file_dialog = wx::FileDialog::builder(Some(&self.base)).build();
-        if wx::ID_OK == file_dialog.show_modal() {
-            let path = file_dialog.get_path();
-            self.editor.load_from(&path);
-            self.set_path(Some(&path));
-        }
-    }
-
-    pub fn save(&self) -> Result<(), ()> {
-        // if let 式とまとめると save_to() 内で borrow_mut() するため
-        // ランタイムエラーになるため、事前にコピーしている
-        let path = self.file.borrow().as_ref().map(ToOwned::to_owned);
+    pub fn save(&mut self) -> Result<(), ()> {
+        let path = self.editor.file.to_owned();
         if let Some(path) = path {
             self.save_to(&path)
         } else {
@@ -155,7 +143,7 @@ impl EditorFrame {
         }
     }
 
-    pub fn save_as(&self) -> Result<(), ()> {
+    pub fn save_as(&mut self) -> Result<(), ()> {
         let file_dialog = wx::FileDialog::builder(Some(&self.base))
             .style(wx::FC_SAVE.into())
             .build();
@@ -166,10 +154,9 @@ impl EditorFrame {
         }
     }
 
-    fn save_to(&self, path: &str) -> Result<(), ()> {
+    fn save_to(&mut self, path: &str) -> Result<(), ()> {
         // TODO: Error Handling
         if self.editor.save_to(&path) {
-            self.set_path(Some(path));
             Ok(())
         } else {
             Err(())
@@ -201,7 +188,7 @@ impl EditorFrame {
     fn update_title(&self) {
         let mut modified = "";
         let mut file = UNTITLED.to_owned();
-        if let Some(path) = self.file.borrow().as_ref() {
+        if let Some(path) = self.editor.file.as_ref() {
             file = path.to_owned();
         }
         if self.editor.is_modified() {
@@ -212,7 +199,7 @@ impl EditorFrame {
     }
 }
 impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
-    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
+    fn handle_command(&mut self, editor_command: &EditorCommand<'a>) {
         match editor_command {
             EditorCommand::Command(command) => match &command {
                 // ファイル
@@ -263,10 +250,36 @@ impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
         }
     }
 }
-impl Observer<DocumentEvent> for EditorFrame {
+impl unsaved_changes::UI for wx::Frame {
+    fn confirm_save<CB: FnOnce(Option<bool>)>(&self, on_complete: CB) {
+        // TODO: メッセージ調整
+        let answer = wx::message_box(
+            "変更があります。保存しますか？",
+            APP_NAME,
+            wx::YES_NO | (wx::CANCEL | wx::CENTRE) as c_int,
+            Some(self),
+        );
+        on_complete(match answer {
+            wx::YES => Some(true),
+            wx::NO => Some(false),
+            _ => None,
+        });
+    }
+    fn get_path_to_save<CB: FnMut(Option<String>)>(&self, mut callback: CB) {
+        let file_dialog = wx::FileDialog::builder(Some(self))
+            .style(wx::FC_SAVE.into())
+            .build();
+        callback(if wx::ID_OK == file_dialog.show_modal() {
+            Some(file_dialog.get_path())
+        } else {
+            None
+        });
+    }
+}
+impl Observer<DocumentEvent> for RefCell<EditorFrame> {
     fn on_notify(&self, event: DocumentEvent) {
         match event {
-            DocumentEvent::TextModified => self.update_title(),
+            DocumentEvent::TextModified => self.borrow_mut().update_title(),
         }
     }
 }

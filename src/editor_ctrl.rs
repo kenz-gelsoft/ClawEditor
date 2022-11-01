@@ -14,16 +14,17 @@ pub enum DocumentEvent {
 
 pub trait Document {
     fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>>;
-    fn clear(&self);
+    fn new_file(&mut self);
+    fn path(&self) -> Option<String>;
     fn is_modified(&self) -> bool;
-    fn reset_modified(&self);
-    fn load_from(&self, file_path: &str);
-    fn save_to(&self, file_path: &str) -> bool;
+    fn load_from(&mut self, file_path: &str);
+    fn save_to(&mut self, file_path: &str) -> bool;
 }
 
 pub struct EditorCtrl {
     ctrl: wx::TextCtrl,
     events: Rc<RefCell<Subject<DocumentEvent>>>,
+    pub file: Option<String>,
 }
 impl EditorCtrl {
     pub fn new<W: WindowMethods>(parent: &W) -> Self {
@@ -32,16 +33,26 @@ impl EditorCtrl {
             .build();
         let events = Rc::new(RefCell::new(Subject::new()));
         let weak_events = Rc::downgrade(&events);
+        let textbox_copy = textbox.clone();
         textbox.bind(wx::RustEvent::Text, move |_: &wx::CommandEvent| {
-            if let Some(events) = weak_events.upgrade() {
-                events.borrow().notify_event(DocumentEvent::TextModified);
-            }
+            // テキスト編集にリアルタイムで応答すると、
+            // テキスト編集を引き起こしたイベント処理内で borrow_mut() していることがあり、
+            // borrow rule に違反して panic する場合がある。
+            // テキスト編集に対するイベント処理をを1イベント分遅らせることで回避する。
+            let weak_events = weak_events.clone();
+            textbox_copy.call_after(move |_| {
+                if let Some(events) = weak_events.upgrade() {
+                    events.borrow().notify_event(DocumentEvent::TextModified);
+                }
+            });
         });
         Self {
             ctrl: textbox,
             events,
+            file: None,
         }
     }
+
     fn delete_selection(&self) {
         let mut from: c_long = 0;
         let mut to: c_long = 0;
@@ -51,9 +62,18 @@ impl EditorCtrl {
         );
         self.ctrl.remove(from, to);
     }
+
+    fn set_path(&mut self, path: Option<&str>) {
+        self.file = path.map(ToOwned::to_owned);
+        self.reset_modified();
+    }
+
+    fn reset_modified(&mut self) {
+        self.ctrl.set_modified(false);
+    }
 }
 impl<'a> CommandHandler<EditorCommand<'a>> for EditorCtrl {
-    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
+    fn handle_command(&mut self, editor_command: &EditorCommand<'a>) {
         match editor_command {
             EditorCommand::Command(command) => match command {
                 Command::EditDelete => {
@@ -71,19 +91,23 @@ impl Document for EditorCtrl {
     fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>> {
         self.events.clone()
     }
-    fn clear(&self) {
+    fn new_file(&mut self) {
         self.ctrl.clear();
+        self.set_path(None);
+    }
+    fn path(&self) -> Option<String> {
+        self.file.clone()
     }
     fn is_modified(&self) -> bool {
         self.ctrl.is_modified()
     }
-    fn reset_modified(&self) {
-        self.ctrl.set_modified(false);
-    }
-    fn load_from(&self, file_path: &str) {
+    fn load_from(&mut self, file_path: &str) {
         self.ctrl.load_file(file_path, wx::TEXT_TYPE_ANY);
+        self.set_path(Some(&file_path));
     }
-    fn save_to(&self, file_path: &str) -> bool {
-        self.ctrl.save_file(file_path, wx::TEXT_TYPE_ANY)
+    fn save_to(&mut self, file_path: &str) -> bool {
+        let result = self.ctrl.save_file(file_path, wx::TEXT_TYPE_ANY);
+        self.set_path(Some(file_path));
+        result
     }
 }

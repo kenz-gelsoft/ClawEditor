@@ -1,4 +1,4 @@
-#![windows_subsystem = "windows"]
+#![cfg_attr(not(test), windows_subsystem = "windows")]
 
 use wx;
 
@@ -9,10 +9,11 @@ mod editor_frame;
 use editor_frame::EditorFrame;
 
 mod observer;
+mod unsaved_changes;
 
 fn main() {
     wx::App::run(|_| {
         let frame = EditorFrame::new();
-        frame.show();
+        frame.borrow().show();
     });
 }
