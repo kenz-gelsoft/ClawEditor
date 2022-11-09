@@ -163,8 +163,13 @@ impl EditorFrame {
         }
     }
 
-    pub fn close(&self) {
-        self.base.close(false);
+    pub fn close(&mut self) {
+        unsaved_changes::save(&mut self.editor, &self.base, |_, saved| {
+            if !saved {
+                return;
+            }
+            self.base.close(false);
+        });
     }
 
     pub fn open_help(&self) {
