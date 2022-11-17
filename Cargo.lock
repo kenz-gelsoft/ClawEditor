@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "cc"
-version = "1.0.73"
+version = "1.0.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fff2a6927b3bb87f9595d67196a70493f627687a71d87a0d692242c33f58c11"
+checksum = "76a284da2e6fe2092f2353e51713435363112dfd60030e22add80be333fb928f"
 
 [[package]]
 name = "claw_editor"
@@ -18,7 +18,7 @@ dependencies = [
 [[package]]
 name = "wxrust"
 version = "0.0.1-alpha"
-source = "git+https://github.com/kenz-gelsoft/wxRust2#55911cd64223093a70b8bb064e80b5303519e069"
+source = "git+https://github.com/kenz-gelsoft/wxRust2#d659ade84587c86fdd0061da9fb1b81843c11d6d"
 dependencies = [
  "cc",
  "wxrust-base",
@@ -28,7 +28,7 @@ dependencies = [
 [[package]]
 name = "wxrust-base"
 version = "0.0.1-alpha"
-source = "git+https://github.com/kenz-gelsoft/wxRust2#55911cd64223093a70b8bb064e80b5303519e069"
+source = "git+https://github.com/kenz-gelsoft/wxRust2#d659ade84587c86fdd0061da9fb1b81843c11d6d"
 dependencies = [
  "cc",
  "wxrust-config",
