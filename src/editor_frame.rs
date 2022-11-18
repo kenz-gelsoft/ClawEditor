@@ -54,6 +54,13 @@ impl EditorFrame {
                     .unwrap_or(EditorCommand::StandardEvents(event));
                 frame_copy.borrow_mut().handle_command(&command);
             });
+        let frame_copy = frame.clone();
+        frame
+            .borrow()
+            .base
+            .bind(wx::RustEvent::CloseWindow, move |event: &wx::CloseEvent| {
+                frame_copy.borrow_mut().on_close(&event);
+            });
         frame.borrow().build_menu();
         frame.borrow().update_title();
 
@@ -164,11 +171,23 @@ impl EditorFrame {
     }
 
     pub fn close(&mut self) {
+        // Rust のイベント処理を引き起こして borrow rule 違反になるため
+        // 1 イベント分遅らせて回避。
+        let weak_frame = self.base.to_weak_ref();
+        self.base.call_after(move |_| {
+            if let Some(frame) = weak_frame.get() {
+                frame.close(false);
+            }
+        });
+    }
+
+    pub fn on_close(&mut self, event: &wx::CloseEvent) {
         unsaved_changes::save(&mut self.editor, &self.base, |_, saved| {
             if !saved {
+                event.veto(true);
                 return;
             }
-            self.base.close(false);
+            event.skip(true);
         });
     }
 
