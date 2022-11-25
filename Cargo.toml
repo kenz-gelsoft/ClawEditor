@@ -7,7 +7,7 @@ edition = "2021"
 
 [features]
 vendored = [
-    "wxrust/vendored",
+    "wx/vendored",
 ]
 
 [dependencies]
