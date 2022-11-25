@@ -80,7 +80,7 @@ jobs:
       run: cargo test --verbose
 
   build-vendored-mac:
-    runs-on: macOS-latest
+    runs-on: macOS-11
 
     steps:
     - uses: actions/checkout@v3
