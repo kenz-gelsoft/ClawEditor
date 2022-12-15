@@ -15,5 +15,8 @@ fn main() {
     wx::App::run(|_| {
         let frame = EditorFrame::new();
         frame.borrow().show();
+        if let Some(file) = wx::App::args().nth(1) {
+            frame.borrow_mut().open_file(Some(&file));
+        }
     });
 }

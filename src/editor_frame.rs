@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::os::raw::c_int;
+use std::path::Path;
 use std::rc::Rc;
 
 use wx;
@@ -128,9 +129,16 @@ impl EditorFrame {
         });
     }
 
-    pub fn open_file(&mut self) {
+    pub fn open_file(&mut self, path: Option<&str>) {
         unsaved_changes::save(&mut self.editor, &self.base, |editor, saved| {
             if !saved {
+                return;
+            }
+            if let Some(path) = path {
+                if Path::new(path).exists() {
+                    editor.load_from(path);
+                }
+                // TODO: エラー表示
                 return;
             }
             let file_dialog = wx::FileDialog::builder(Some(&self.base)).build();
@@ -232,7 +240,7 @@ impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
                 }
                 Command::FileNewWindow => todo!(),
                 Command::FileOpen => {
-                    self.open_file();
+                    self.open_file(None);
                 }
                 Command::FileSave => {
                     _ = self.save();
