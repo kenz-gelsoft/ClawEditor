@@ -5,9 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+vendored = [
+    "wx/vendored",
+]
+
 [dependencies]
 wx = { package = "wxrust", version = "0.0.1-alpha" }
 
 [patch.crates-io]
 wxrust = { git = "https://github.com/kenz-gelsoft/wxRust2" }
 wxrust-base = { git = "https://github.com/kenz-gelsoft/wxRust2" }
+wxrust-config = { git = "https://github.com/kenz-gelsoft/wxrust-vendored-config" }
