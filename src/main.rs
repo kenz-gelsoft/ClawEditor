@@ -26,8 +26,8 @@ fn main() {
             file_to_open = Some(file);
         }
         frame.borrow().show();
-        if let Some(file) = file_to_open {
-            frame.borrow_mut().open_file(Some(&file));
+        if file_to_open.is_some() {
+            frame.borrow_mut().open_file(file_to_open.as_deref());
         }
     });
 }
