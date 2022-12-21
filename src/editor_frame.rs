@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::os::raw::c_int;
-use std::path::Path;
 use std::rc::Rc;
 
 use wx;
@@ -135,10 +134,7 @@ impl EditorFrame {
                 return;
             }
             if let Some(path) = path {
-                if Path::new(path).exists() {
-                    editor.load_from(path);
-                }
-                // TODO: エラー表示
+                editor.load_from(path);
                 return;
             }
             let file_dialog = wx::FileDialog::builder(Some(&self.base)).build();
