@@ -23,7 +23,7 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-wx30-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Install Prerequisites
       run: sudo apt install libwxgtk3.0-gtk3-dev
     - name: Check fmt
@@ -45,8 +45,8 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          #target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          target/
+        key: ${{ runner.os }}-wx32-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Install Prerequisites
       run: |
         sudo apt-key adv --fetch-keys https://repos.codelite.org/CodeLite.asc
