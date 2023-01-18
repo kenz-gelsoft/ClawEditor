@@ -8,6 +8,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # workaround for macOS CI
+  HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
 
 jobs:
   build-wx30gtk:
@@ -23,9 +25,11 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-wx30-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Install Prerequisites
-      run: sudo apt install libwxgtk3.0-gtk3-dev
+      run: |
+        sudo apt update
+        sudo apt install libwxgtk3.0-gtk3-dev
     - name: Check fmt
       run: cargo fmt --check --all
     - name: Build
@@ -34,7 +38,7 @@ jobs:
       run: cargo test --verbose
 
   build-wx32gtk:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
@@ -46,13 +50,13 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-wx32-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Install Prerequisites
       run: |
         sudo apt-key adv --fetch-keys https://repos.codelite.org/CodeLite.asc
-        sudo apt-add-repository 'deb https://repos.codelite.org/wx3.2.0/ubuntu/ focal universe'
+        sudo apt-add-repository 'deb https://repos.codelite.org/wx3.2.0/ubuntu/ jammy universe'
         sudo apt update
-        sudo apt install libwxgtk3.2unofficial-dev
+        sudo apt install libwxgtk3.2unofficial-dev libnotify-dev
     - name: Build
       run: cargo build --verbose
     - name: Run tests
