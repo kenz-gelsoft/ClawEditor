@@ -13,6 +13,9 @@ vendored = [
 [dependencies]
 wx = { package = "wxrust", version = "0.0.1-alpha" }
 
+[build-dependencies]
+embed-resource = "1.8"
+
 [patch.crates-io]
 wxrust = { git = "https://github.com/kenz-gelsoft/wxRust2" }
 wxrust-base = { git = "https://github.com/kenz-gelsoft/wxRust2" }
