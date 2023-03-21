@@ -203,7 +203,9 @@ impl EditorFrame {
                 }
                 _ => (),
             },
-            _ => (),
+            EditorCommand::StandardEvents(command) => {
+                self.editor.on_update_ui(command);
+            }
         }
     }
 

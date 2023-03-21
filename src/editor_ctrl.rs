@@ -67,6 +67,12 @@ impl EditorCtrl {
     fn reset_modified(&self) {
         self.ctrl.set_modified(false);
     }
+
+    pub fn on_update_ui(&self, event: &wx::UpdateUIEvent) {
+        if event.get_id() == wx::ID_UNDO {
+            event.enable(self.ctrl.can_undo());
+        }
+    }
 }
 impl<'a> CommandHandler<EditorCommand<'a, wx::CommandEvent>> for EditorCtrl {
     fn handle_command(&self, editor_command: &EditorCommand<'a, wx::CommandEvent>) {
