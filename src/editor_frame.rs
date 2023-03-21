@@ -51,7 +51,10 @@ impl EditorFrame {
         frame
             .base
             .bind(wx::RustEvent::UpdateUI, move |event: &wx::UpdateUIEvent| {
-                frame_copy.on_update_ui(&event);
+                let command = Command::from(event.get_id())
+                    .map(|command| EditorCommand::Command(command))
+                    .unwrap_or(EditorCommand::StandardEvents(event));
+                frame_copy.on_update_ui(&event, &command);
             });
         let frame_copy = frame.clone();
         frame
@@ -183,8 +186,32 @@ impl EditorFrame {
         });
     }
 
-    pub fn on_update_ui(&self, event: &wx::UpdateUIEvent) {
-        println!("hello");
+    pub fn on_update_ui(
+        &self,
+        event: &wx::UpdateUIEvent,
+        command: &EditorCommand<wx::UpdateUIEvent>,
+    ) {
+        match command {
+            EditorCommand::Command(command) => match &command {
+                // ファイル
+                Command::FileNewWindow
+                // 編集
+                | Command::EditFind
+                | Command::EditFindNext
+                | Command::EditFindPrevious
+                | Command::EditReplace
+                | Command::EditGo
+                | Command::EditDate
+                // 書式
+                | Command::FormatWordWrap | Command::FormatFont
+                // 表示
+                | Command::ViewStatusBar => {
+                    event.enable(false);
+                }
+                _ => (),
+            },
+            _ => (),
+        }
     }
 
     pub fn on_close(&self, event: &wx::CloseEvent) {
@@ -228,8 +255,8 @@ impl EditorFrame {
         self.base.set_title(&title);
     }
 }
-impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
-    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
+impl<'a> CommandHandler<EditorCommand<'a, wx::CommandEvent>> for EditorFrame {
+    fn handle_command(&self, editor_command: &EditorCommand<'a, wx::CommandEvent>) {
         match editor_command {
             EditorCommand::Command(command) => match &command {
                 // ファイル

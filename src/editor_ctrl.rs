@@ -76,8 +76,8 @@ impl EditorCtrl {
         self.ctrl.set_modified(false);
     }
 }
-impl<'a> CommandHandler<EditorCommand<'a>> for EditorCtrl {
-    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
+impl<'a> CommandHandler<EditorCommand<'a, wx::CommandEvent>> for EditorCtrl {
+    fn handle_command(&self, editor_command: &EditorCommand<'a, wx::CommandEvent>) {
         match editor_command {
             EditorCommand::Command(command) => match command {
                 Command::EditDelete => {
