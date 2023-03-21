@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::os::raw::c_int;
 use std::rc::Rc;
 
@@ -20,7 +19,7 @@ pub struct EditorFrame {
     editor: EditorCtrl,
 }
 impl EditorFrame {
-    pub fn new() -> Rc<RefCell<Self>> {
+    pub fn new() -> Rc<Self> {
         let default_size = if cfg!(windows) {
             // XXX: Windows プログラムとして自然なデフォルトサイズにするため、
             // CW_USEDEFAULT を指定しています。
@@ -33,43 +32,35 @@ impl EditorFrame {
             .size(default_size)
             .build();
         let editor = EditorCtrl::new(&frame);
-        let frame = Rc::new(RefCell::new(EditorFrame {
+        let frame = Rc::new(EditorFrame {
             base: frame,
             editor,
-        }));
+        });
+        let frame_copy = frame.clone();
+        frame.editor.events().borrow_mut().add_observer(frame_copy);
         let frame_copy = frame.clone();
         frame
-            .borrow()
-            .editor
-            .events()
-            .borrow_mut()
-            .add_observer(frame_copy);
-        let frame_copy = frame.clone();
-        frame
-            .borrow()
             .base
             .bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
                 let command = Command::from(event.get_id())
                     .map(|command| EditorCommand::Command(command))
                     .unwrap_or(EditorCommand::StandardEvents(event));
-                frame_copy.borrow().handle_command(&command);
+                frame_copy.handle_command(&command);
             });
         let frame_copy = frame.clone();
         frame
-            .borrow()
             .base
             .bind(wx::RustEvent::UpdateUI, move |event: &wx::UpdateUIEvent| {
-                frame_copy.borrow().on_update_ui(&event);
+                frame_copy.on_update_ui(&event);
             });
         let frame_copy = frame.clone();
         frame
-            .borrow()
             .base
             .bind(wx::RustEvent::CloseWindow, move |event: &wx::CloseEvent| {
-                frame_copy.borrow().on_close(&event);
+                frame_copy.on_close(&event);
             });
-        frame.borrow().build_menu();
-        frame.borrow().update_title();
+        frame.build_menu();
+        frame.update_title();
 
         frame
     }
@@ -315,10 +306,10 @@ impl unsaved_changes::UI for wx::Frame {
         });
     }
 }
-impl Observer<DocumentEvent> for RefCell<EditorFrame> {
+impl Observer<DocumentEvent> for EditorFrame {
     fn on_notify(&self, event: DocumentEvent) {
         match event {
-            DocumentEvent::TextModified => self.borrow_mut().update_title(),
+            DocumentEvent::TextModified => self.update_title(),
         }
     }
 }
