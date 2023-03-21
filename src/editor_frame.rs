@@ -70,14 +70,14 @@ impl EditorFrame {
                 // 処理の実行を１イベント分遅らせることで問題を回避できる。
                 // 一方で、CloseWindow, UpdateUI などその場で判定を求められる類のイベントハンドラは
                 // 処理を遅延させることが困難である。
-                frame_copy.borrow_mut().on_update_ui(&event);
+                frame_copy.borrow().on_update_ui(&event);
             });
         let frame_copy = frame.clone();
         frame
             .borrow()
             .base
             .bind(wx::RustEvent::CloseWindow, move |event: &wx::CloseEvent| {
-                frame_copy.borrow_mut().on_close(&event);
+                frame_copy.borrow().on_close(&event);
             });
         frame.borrow().build_menu();
         frame.borrow().update_title();
@@ -137,8 +137,8 @@ impl EditorFrame {
         self.base.set_menu_bar(Some(&menu_bar));
     }
 
-    pub fn new_file(&mut self) {
-        unsaved_changes::save(&mut self.editor, &self.base, |editor, saved| {
+    pub fn new_file(&self) {
+        unsaved_changes::save(&self.editor, &self.base, |editor, saved| {
             if !saved {
                 return;
             }
@@ -164,7 +164,7 @@ impl EditorFrame {
     }
 
     pub fn save(&mut self) -> Result<(), ()> {
-        let path = self.editor.file.to_owned();
+        let path = self.editor.file.borrow().to_owned();
         if let Some(path) = path {
             self.save_to(&path)
         } else {
@@ -203,12 +203,12 @@ impl EditorFrame {
         });
     }
 
-    pub fn on_update_ui(&mut self, event: &wx::UpdateUIEvent) {
+    pub fn on_update_ui(&self, event: &wx::UpdateUIEvent) {
         println!("hello");
     }
 
-    pub fn on_close(&mut self, event: &wx::CloseEvent) {
-        unsaved_changes::save(&mut self.editor, &self.base, |_, saved| {
+    pub fn on_close(&self, event: &wx::CloseEvent) {
+        unsaved_changes::save(&self.editor, &self.base, |_, saved| {
             if !saved {
                 event.veto(true);
                 return;
@@ -238,7 +238,7 @@ impl EditorFrame {
     fn update_title(&self) {
         let mut modified = "";
         let mut file = UNTITLED.to_owned();
-        if let Some(path) = self.editor.file.as_ref() {
+        if let Some(path) = self.editor.file.borrow().as_ref() {
             file = path.to_owned();
         }
         if self.editor.is_modified() {
