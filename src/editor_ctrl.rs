@@ -63,6 +63,10 @@ impl EditorCtrl {
         self.ctrl.remove(from, to);
     }
 
+    fn select_all(&self) {
+        self.ctrl.select_all();
+    }
+
     fn set_path(&mut self, path: Option<&str>) {
         self.file = path.map(ToOwned::to_owned);
         self.reset_modified();
@@ -82,6 +86,12 @@ impl<'a> CommandHandler<EditorCommand<'a>> for EditorCtrl {
                 _ => (),
             },
             EditorCommand::StandardEvents(event) => {
+                if event.get_id() == wx::ID_SELECTALL {
+                    // GTK+ では wx::TextCtrl が wx::ID_SELECTALL を処理しないため、
+                    // 自前で呼び出します。
+                    self.select_all();
+                    return;
+                }
                 self.ctrl.process_event(*event);
             }
         }
