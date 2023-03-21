@@ -58,6 +58,24 @@ impl EditorFrame {
         frame
             .borrow()
             .base
+            .bind(wx::RustEvent::UpdateUI, move |event: &wx::UpdateUIEvent| {
+                // wx::EvtHandler のユーザーデータとして EditorFrame を引き渡して、
+                // 各イベントハンドラで borrow_mut() しなくていいようにすることを考えた。
+                // しかし、結局その後 EditorFrame への参照を使いたいので
+                // 所有権を渡してしまうわけにいかない。
+                // 結局 Rc<RefCell<>> などを渡すのであれば、各イベントハンドラの箇所で
+                // borrow_mut() をせねばならず、問題が解決しない。
+                // イベントハンドラが入れ子になることは避けられない。
+                // 幾つかの典型的なイベント処理は同期的でなくてもよいために、
+                // 処理の実行を１イベント分遅らせることで問題を回避できる。
+                // 一方で、CloseWindow, UpdateUI などその場で判定を求められる類のイベントハンドラは
+                // 処理を遅延させることが困難である。
+                frame_copy.borrow_mut().on_update_ui(&event);
+            });
+        let frame_copy = frame.clone();
+        frame
+            .borrow()
+            .base
             .bind(wx::RustEvent::CloseWindow, move |event: &wx::CloseEvent| {
                 frame_copy.borrow_mut().on_close(&event);
             });
@@ -183,6 +201,10 @@ impl EditorFrame {
                 frame.close(false);
             }
         });
+    }
+
+    pub fn on_update_ui(&mut self, event: &wx::UpdateUIEvent) {
+        println!("hello");
     }
 
     pub fn on_close(&mut self, event: &wx::CloseEvent) {
