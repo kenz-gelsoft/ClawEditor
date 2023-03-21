@@ -176,14 +176,7 @@ impl EditorFrame {
     }
 
     pub fn close(&self) {
-        // Rust のイベント処理を引き起こして borrow rule 違反になるため
-        // 1 イベント分遅らせて回避。
-        let weak_frame = self.base.to_weak_ref();
-        self.base.call_after(move |_| {
-            if let Some(frame) = weak_frame.get() {
-                frame.close(false);
-            }
-        });
+        self.base.close(false);
     }
 
     pub fn on_update_ui(
