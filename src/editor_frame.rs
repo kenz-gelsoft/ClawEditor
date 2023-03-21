@@ -52,7 +52,7 @@ impl EditorFrame {
                 let command = Command::from(event.get_id())
                     .map(|command| EditorCommand::Command(command))
                     .unwrap_or(EditorCommand::StandardEvents(event));
-                frame_copy.borrow_mut().handle_command(&command);
+                frame_copy.borrow().handle_command(&command);
             });
         let frame_copy = frame.clone();
         frame
@@ -146,8 +146,8 @@ impl EditorFrame {
         });
     }
 
-    pub fn open_file(&mut self, path: Option<&str>) {
-        unsaved_changes::save(&mut self.editor, &self.base, |editor, saved| {
+    pub fn open_file(&self, path: Option<&str>) {
+        unsaved_changes::save(&self.editor, &self.base, |editor, saved| {
             if !saved {
                 return;
             }
@@ -163,7 +163,7 @@ impl EditorFrame {
         });
     }
 
-    pub fn save(&mut self) -> Result<(), ()> {
+    pub fn save(&self) -> Result<(), ()> {
         let path = self.editor.file.borrow().to_owned();
         if let Some(path) = path {
             self.save_to(&path)
@@ -172,7 +172,7 @@ impl EditorFrame {
         }
     }
 
-    pub fn save_as(&mut self) -> Result<(), ()> {
+    pub fn save_as(&self) -> Result<(), ()> {
         let file_dialog = wx::FileDialog::builder(Some(&self.base))
             .style(wx::FC_SAVE.into())
             .build();
@@ -183,7 +183,7 @@ impl EditorFrame {
         }
     }
 
-    fn save_to(&mut self, path: &str) -> Result<(), ()> {
+    fn save_to(&self, path: &str) -> Result<(), ()> {
         // TODO: Error Handling
         if self.editor.save_to(&path) {
             Ok(())
@@ -192,7 +192,7 @@ impl EditorFrame {
         }
     }
 
-    pub fn close(&mut self) {
+    pub fn close(&self) {
         // Rust のイベント処理を引き起こして borrow rule 違反になるため
         // 1 イベント分遅らせて回避。
         let weak_frame = self.base.to_weak_ref();
@@ -249,7 +249,7 @@ impl EditorFrame {
     }
 }
 impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
-    fn handle_command(&mut self, editor_command: &EditorCommand<'a>) {
+    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
         match editor_command {
             EditorCommand::Command(command) => match &command {
                 // ファイル

@@ -77,7 +77,7 @@ impl EditorCtrl {
     }
 }
 impl<'a> CommandHandler<EditorCommand<'a>> for EditorCtrl {
-    fn handle_command(&mut self, editor_command: &EditorCommand<'a>) {
+    fn handle_command(&self, editor_command: &EditorCommand<'a>) {
         match editor_command {
             EditorCommand::Command(command) => match command {
                 Command::EditDelete => {
