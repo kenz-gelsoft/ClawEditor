@@ -20,14 +20,14 @@ fn main() {
         if let Some(file) = wx::App::args().nth(1) {
             if !Path::new(&file).exists() {
                 println!("The file {} does not exist.", file);
-                frame.borrow_mut().close();
+                frame.close();
                 return;
             }
             file_to_open = Some(file);
         }
-        frame.borrow().show();
+        frame.show();
         if file_to_open.is_some() {
-            frame.borrow_mut().open_file(file_to_open.as_deref());
+            frame.open_file(file_to_open.as_deref());
         }
     });
 }

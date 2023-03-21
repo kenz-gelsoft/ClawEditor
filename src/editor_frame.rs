@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::os::raw::c_int;
 use std::rc::Rc;
 
@@ -20,7 +19,7 @@ pub struct EditorFrame {
     editor: EditorCtrl,
 }
 impl EditorFrame {
-    pub fn new() -> Rc<RefCell<Self>> {
+    pub fn new() -> Rc<Self> {
         let default_size = if cfg!(windows) {
             // XXX: Windows プログラムとして自然なデフォルトサイズにするため、
             // CW_USEDEFAULT を指定しています。
@@ -33,36 +32,38 @@ impl EditorFrame {
             .size(default_size)
             .build();
         let editor = EditorCtrl::new(&frame);
-        let frame = Rc::new(RefCell::new(EditorFrame {
+        let frame = Rc::new(EditorFrame {
             base: frame,
             editor,
-        }));
+        });
+        let frame_copy = frame.clone();
+        frame.editor.events().borrow_mut().add_observer(frame_copy);
         let frame_copy = frame.clone();
         frame
-            .borrow()
-            .editor
-            .events()
-            .borrow_mut()
-            .add_observer(frame_copy);
-        let frame_copy = frame.clone();
-        frame
-            .borrow()
             .base
             .bind(wx::RustEvent::Menu, move |event: &wx::CommandEvent| {
                 let command = Command::from(event.get_id())
                     .map(|command| EditorCommand::Command(command))
                     .unwrap_or(EditorCommand::StandardEvents(event));
-                frame_copy.borrow_mut().handle_command(&command);
+                frame_copy.handle_command(&command);
             });
         let frame_copy = frame.clone();
         frame
-            .borrow()
+            .base
+            .bind(wx::RustEvent::UpdateUI, move |event: &wx::UpdateUIEvent| {
+                let command = Command::from(event.get_id())
+                    .map(|command| EditorCommand::Command(command))
+                    .unwrap_or(EditorCommand::StandardEvents(event));
+                frame_copy.on_update_ui(&event, &command);
+            });
+        let frame_copy = frame.clone();
+        frame
             .base
             .bind(wx::RustEvent::CloseWindow, move |event: &wx::CloseEvent| {
-                frame_copy.borrow_mut().on_close(&event);
+                frame_copy.on_close(&event);
             });
-        frame.borrow().build_menu();
-        frame.borrow().update_title();
+        frame.build_menu();
+        frame.update_title();
 
         frame
     }
@@ -119,8 +120,8 @@ impl EditorFrame {
         self.base.set_menu_bar(Some(&menu_bar));
     }
 
-    pub fn new_file(&mut self) {
-        unsaved_changes::save(&mut self.editor, &self.base, |editor, saved| {
+    pub fn new_file(&self) {
+        unsaved_changes::save(&self.editor, &self.base, |editor, saved| {
             if !saved {
                 return;
             }
@@ -128,8 +129,8 @@ impl EditorFrame {
         });
     }
 
-    pub fn open_file(&mut self, path: Option<&str>) {
-        unsaved_changes::save(&mut self.editor, &self.base, |editor, saved| {
+    pub fn open_file(&self, path: Option<&str>) {
+        unsaved_changes::save(&self.editor, &self.base, |editor, saved| {
             if !saved {
                 return;
             }
@@ -145,8 +146,8 @@ impl EditorFrame {
         });
     }
 
-    pub fn save(&mut self) -> Result<(), ()> {
-        let path = self.editor.file.to_owned();
+    pub fn save(&self) -> Result<(), ()> {
+        let path = self.editor.file.borrow().to_owned();
         if let Some(path) = path {
             self.save_to(&path)
         } else {
@@ -154,7 +155,7 @@ impl EditorFrame {
         }
     }
 
-    pub fn save_as(&mut self) -> Result<(), ()> {
+    pub fn save_as(&self) -> Result<(), ()> {
         let file_dialog = wx::FileDialog::builder(Some(&self.base))
             .style(wx::FC_SAVE.into())
             .build();
@@ -165,7 +166,7 @@ impl EditorFrame {
         }
     }
 
-    fn save_to(&mut self, path: &str) -> Result<(), ()> {
+    fn save_to(&self, path: &str) -> Result<(), ()> {
         // TODO: Error Handling
         if self.editor.save_to(&path) {
             Ok(())
@@ -174,7 +175,7 @@ impl EditorFrame {
         }
     }
 
-    pub fn close(&mut self) {
+    pub fn close(&self) {
         // Rust のイベント処理を引き起こして borrow rule 違反になるため
         // 1 イベント分遅らせて回避。
         let weak_frame = self.base.to_weak_ref();
@@ -185,8 +186,36 @@ impl EditorFrame {
         });
     }
 
-    pub fn on_close(&mut self, event: &wx::CloseEvent) {
-        unsaved_changes::save(&mut self.editor, &self.base, |_, saved| {
+    pub fn on_update_ui(
+        &self,
+        event: &wx::UpdateUIEvent,
+        command: &EditorCommand<wx::UpdateUIEvent>,
+    ) {
+        match command {
+            EditorCommand::Command(command) => match &command {
+                // ファイル
+                Command::FileNewWindow
+                // 編集
+                | Command::EditFind
+                | Command::EditFindNext
+                | Command::EditFindPrevious
+                | Command::EditReplace
+                | Command::EditGo
+                | Command::EditDate
+                // 書式
+                | Command::FormatWordWrap | Command::FormatFont
+                // 表示
+                | Command::ViewStatusBar => {
+                    event.enable(false);
+                }
+                _ => (),
+            },
+            _ => (),
+        }
+    }
+
+    pub fn on_close(&self, event: &wx::CloseEvent) {
+        unsaved_changes::save(&self.editor, &self.base, |_, saved| {
             if !saved {
                 event.veto(true);
                 return;
@@ -216,7 +245,7 @@ impl EditorFrame {
     fn update_title(&self) {
         let mut modified = "";
         let mut file = UNTITLED.to_owned();
-        if let Some(path) = self.editor.file.as_ref() {
+        if let Some(path) = self.editor.file.borrow().as_ref() {
             file = path.to_owned();
         }
         if self.editor.is_modified() {
@@ -226,8 +255,8 @@ impl EditorFrame {
         self.base.set_title(&title);
     }
 }
-impl<'a> CommandHandler<EditorCommand<'a>> for EditorFrame {
-    fn handle_command(&mut self, editor_command: &EditorCommand<'a>) {
+impl<'a> CommandHandler<EditorCommand<'a, wx::CommandEvent>> for EditorFrame {
+    fn handle_command(&self, editor_command: &EditorCommand<'a, wx::CommandEvent>) {
         match editor_command {
             EditorCommand::Command(command) => match &command {
                 // ファイル
@@ -304,10 +333,10 @@ impl unsaved_changes::UI for wx::Frame {
         });
     }
 }
-impl Observer<DocumentEvent> for RefCell<EditorFrame> {
+impl Observer<DocumentEvent> for EditorFrame {
     fn on_notify(&self, event: DocumentEvent) {
         match event {
-            DocumentEvent::TextModified => self.borrow_mut().update_title(),
+            DocumentEvent::TextModified => self.update_title(),
         }
     }
 }

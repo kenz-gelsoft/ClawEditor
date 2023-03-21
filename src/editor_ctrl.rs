@@ -14,17 +14,17 @@ pub enum DocumentEvent {
 
 pub trait Document {
     fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>>;
-    fn new_file(&mut self);
+    fn new_file(&self);
     fn path(&self) -> Option<String>;
     fn is_modified(&self) -> bool;
-    fn load_from(&mut self, file_path: &str);
-    fn save_to(&mut self, file_path: &str) -> bool;
+    fn load_from(&self, file_path: &str);
+    fn save_to(&self, file_path: &str) -> bool;
 }
 
 pub struct EditorCtrl {
     ctrl: wx::TextCtrl,
     events: Rc<RefCell<Subject<DocumentEvent>>>,
-    pub file: Option<String>,
+    pub file: Rc<RefCell<Option<String>>>,
 }
 impl EditorCtrl {
     pub fn new<W: WindowMethods>(parent: &W) -> Self {
@@ -49,7 +49,7 @@ impl EditorCtrl {
         Self {
             ctrl: textbox,
             events,
-            file: None,
+            file: Rc::new(RefCell::new(None)),
         }
     }
 
@@ -67,17 +67,17 @@ impl EditorCtrl {
         self.ctrl.select_all();
     }
 
-    fn set_path(&mut self, path: Option<&str>) {
-        self.file = path.map(ToOwned::to_owned);
+    fn set_path(&self, path: Option<&str>) {
+        *self.file.borrow_mut() = path.map(ToOwned::to_owned);
         self.reset_modified();
     }
 
-    fn reset_modified(&mut self) {
+    fn reset_modified(&self) {
         self.ctrl.set_modified(false);
     }
 }
-impl<'a> CommandHandler<EditorCommand<'a>> for EditorCtrl {
-    fn handle_command(&mut self, editor_command: &EditorCommand<'a>) {
+impl<'a> CommandHandler<EditorCommand<'a, wx::CommandEvent>> for EditorCtrl {
+    fn handle_command(&self, editor_command: &EditorCommand<'a, wx::CommandEvent>) {
         match editor_command {
             EditorCommand::Command(command) => match command {
                 Command::EditDelete => {
@@ -101,21 +101,21 @@ impl Document for EditorCtrl {
     fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>> {
         self.events.clone()
     }
-    fn new_file(&mut self) {
+    fn new_file(&self) {
         self.ctrl.clear();
         self.set_path(None);
     }
     fn path(&self) -> Option<String> {
-        self.file.clone()
+        self.file.borrow().clone()
     }
     fn is_modified(&self) -> bool {
         self.ctrl.is_modified()
     }
-    fn load_from(&mut self, file_path: &str) {
+    fn load_from(&self, file_path: &str) {
         self.ctrl.load_file(file_path, wx::TEXT_TYPE_ANY);
         self.set_path(Some(&file_path));
     }
-    fn save_to(&mut self, file_path: &str) -> bool {
+    fn save_to(&self, file_path: &str) -> bool {
         let result = self.ctrl.save_file(file_path, wx::TEXT_TYPE_ANY);
         self.set_path(Some(file_path));
         result

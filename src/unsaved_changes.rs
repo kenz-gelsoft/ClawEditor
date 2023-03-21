@@ -6,7 +6,7 @@ pub trait UI {
 }
 
 // TODO: future 的なインターフェイス
-pub fn save<D: Document, U: UI, CB: Fn(&mut D, bool)>(doc: &mut D, ui: &U, on_complete: CB) {
+pub fn save<D: Document, U: UI, CB: Fn(&D, bool)>(doc: &D, ui: &U, on_complete: CB) {
     if !doc.is_modified() {
         // 変更されていなければ何もしない
         return on_complete(doc, true);
@@ -53,7 +53,7 @@ mod test {
     // TODO: mockall を試す
     struct MockDoc {
         path: Option<String>,
-        modified: bool,
+        modified: RefCell<bool>,
         save_wont_be_called: bool,
         save_will_fail: bool,
     }
@@ -61,7 +61,7 @@ mod test {
         fn new() -> Self {
             Self {
                 path: None,
-                modified: true,
+                modified: RefCell::new(true),
                 save_wont_be_called: false,
                 save_will_fail: false,
             }
@@ -71,7 +71,7 @@ mod test {
         fn events(&self) -> Rc<RefCell<Subject<DocumentEvent>>> {
             todo!()
         }
-        fn new_file(&mut self) {
+        fn new_file(&self) {
             todo!()
         }
 
@@ -80,19 +80,19 @@ mod test {
         }
 
         fn is_modified(&self) -> bool {
-            self.modified
+            *self.modified.borrow()
         }
 
-        fn load_from(&mut self, _file_path: &str) {
+        fn load_from(&self, _file_path: &str) {
             todo!()
         }
 
-        fn save_to(&mut self, _file_path: &str) -> bool {
+        fn save_to(&self, _file_path: &str) -> bool {
             assert!(!self.save_wont_be_called);
             if self.save_will_fail {
                 return false;
             }
-            self.modified = false;
+            *self.modified.borrow_mut() = false;
             true
         }
     }
@@ -133,7 +133,7 @@ mod test {
     fn do_nothing_if_not_modified() {
         // Given: ドキュメントの変更フラグが立っていない状態から
         let mut doc = MockDoc::new();
-        doc.modified = false;
+        *doc.modified.borrow_mut() = false;
         assert!(!doc.is_modified());
 
         // When: 保存を判定したら

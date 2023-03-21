@@ -3,12 +3,12 @@ use std::os::raw::c_int;
 use wx;
 
 pub trait CommandHandler<C> {
-    fn handle_command(&mut self, command: &C);
+    fn handle_command(&self, command: &C);
 }
 
-pub enum EditorCommand<'a> {
+pub enum EditorCommand<'a, ET> {
     Command(Command),
-    StandardEvents(&'a wx::CommandEvent),
+    StandardEvents(&'a ET),
 }
 
 #[derive(Clone, Copy)]
