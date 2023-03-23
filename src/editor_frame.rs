@@ -295,6 +295,10 @@ impl<'a> CommandHandler<EditorCommand<'a, wx::CommandEvent>> for EditorFrame {
                 wx::ID_ABOUT => {
                     self.show_about();
                 }
+                wx::ID_EXIT => {
+                    // Mac で終了したとき
+                    self.close();
+                }
                 _ => {
                     self.editor.handle_command(editor_command);
                 }
